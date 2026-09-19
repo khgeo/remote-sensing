@@ -1,0 +1,8 @@
+# Pinned: MkDocs 2.0 removes the plugin system and breaks Material.
+# Keep the <2.0 ceiling until Material ships a compatible major release.
+mkdocs>=1.6,<2.0
+mkdocs-material>=9.5,<10.0
+pymdown-extensions>=10.7
+
+# Optional: single-file PDF export (uncomment the plugin block in mkdocs.yml too)
+# mkdocs-with-pdf>=0.9.3

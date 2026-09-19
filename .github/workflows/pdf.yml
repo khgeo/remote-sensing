@@ -1,0 +1,41 @@
+name: Build PDF book
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  pdf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Khmer fonts (Google Fonts, SIL OFL)
+        run: |
+          mkdir -p ~/.fonts
+          for f in battambang/Battambang-Regular.ttf battambang/Battambang-Bold.ttf moul/Moul-Regular.ttf siemreap/Siemreap.ttf; do
+            curl -sfL -o ~/.fonts/$(basename $f) https://raw.githubusercontent.com/google/fonts/main/ofl/$f
+          done
+          fc-cache -f
+      - run: pip install -r requirements.txt -r tools/pdf/requirements.txt
+      - run: playwright install --with-deps chromium
+      - run: mkdocs build
+      - run: python tools/pdf/build_book.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fundamentals-of-gis-pdf
+          path: |
+            book/fundamentals-of-gis.pdf
+            book/cover-wrap-print.pdf
+      - name: Attach to release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" book/fundamentals-of-gis.pdf book/cover-wrap-print.pdf --clobber

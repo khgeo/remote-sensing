@@ -1,0 +1,131 @@
+site_name: មូលដ្ឋានគ្រឹះនៃការយកព័ត៌មានពីចម្ងាយ
+site_description: សៀវភៅសិក្សាការយកព័ត៌មានពីចម្ងាយជាភាសាខ្មែរ សម្រាប់វគ្គសិក្សា ១ ឆមាស
+site_author: YAM Sarath (យាំ សារដ្ឋ)
+site_url: https://khgeo.github.io/remote-sensing/
+repo_url: https://github.com/khgeo/remote-sensing
+repo_name: remote-sensing
+edit_uri: edit/main/docs/
+copyright: CC BY-SA 4.0 · អាចប្រើ និងកែសម្រួលបាន ដោយដកស្រង់ប្រភព
+
+theme:
+  name: material
+  language: en          # Material has no Khmer UI pack; content is Khmer
+  font: false           # disable Google Fonts CDN; we load Khmer fonts in CSS
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.top
+    - navigation.indexes
+    - toc.follow
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: brown
+      accent: deep orange
+      toggle:
+        icon: material/weather-night
+        name: ប្ដូរទៅរបៀបងងឹត
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: brown
+      accent: deep orange
+      toggle:
+        icon: material/weather-sunny
+        name: ប្ដូរទៅរបៀបភ្លឺ
+
+extra_css:
+  - https://fonts.googleapis.com/css2?family=Battambang:wght@400;700&family=Siemreap&family=Moul&display=swap
+  - assets/css/khmer.css
+  - https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css
+  - assets/css/workbook.css
+  - assets/css/lesson-sims.css
+
+extra_javascript:
+  - https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js
+  - assets/js/rs-sims.js
+  - assets/js/lesson-sims.js
+  - assets/js/workbook.js
+
+markdown_extensions:
+  - admonition
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.details
+  - pymdownx.snippets:
+      base_path: [docs]
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.caret
+  - pymdownx.mark
+  - pymdownx.tilde
+  - attr_list
+  - md_in_html
+  - tables
+  - footnotes
+  - toc:
+      permalink: "¶"
+      toc_depth: 3
+
+plugins:
+  - search
+
+extra:
+  homepage: https://khgeo.github.io/
+  social:
+    - icon: material/bookshelf
+      link: https://khgeo.github.io/
+      name: ស៊េរីសៀវភៅទាំង ៤
+
+
+nav:
+  - ទំព័រដើម: index.md
+  - កម្មវិធីសិក្សា: syllabus.md
+  - ជំពូកទី១៖ មូលដ្ឋានរូបវិទ្យា:
+      - មេរៀនទី១៖ ការយកព័ត៌មានពីចម្ងាយជាអ្វី: lessons/lesson-01.md
+      - មេរៀនទី២៖ រលកអេឡិចត្រូម៉ាញេទិច និងបរិយាកាស: lessons/lesson-02.md
+      - មេរៀនទី៣៖ អន្តរកម្មជាមួយផ្ទៃដី និងហត្ថលេខាស្ពិចត្រាល់: lessons/lesson-03.md
+  - ជំពូកទី២៖ ឧបករណ៍ចាប់សញ្ញា និងទិន្នន័យ:
+      - មេរៀនទី៤៖ ឧបករណ៍ចាប់សញ្ញា និងគន្លងផ្កាយរណប: lessons/lesson-04.md
+      - មេរៀនទី៥៖ គុណភាពបង្ហាញទាំងបួន: lessons/lesson-05.md
+      - មេរៀនទី៦៖ ប្រភពរូបភាព និងការទាញយក: lessons/lesson-06.md
+  - ជំពូកទី៣៖ ការត្រៀមរូបភាព:
+      - មេរៀនទី៧៖ ការកែតម្រូវរ៉ាដ្យូម៉ែត្រ និងបរិយាកាស: lessons/lesson-07.md
+      - មេរៀនទី៨៖ ការកែតម្រូវធរណីមាត្រ និងការរួមផ្សំរូបភាព: lessons/lesson-08.md
+      - មេរៀនទី៩៖ ការបង្ហាញរូបភាព និងបន្សំក្រុមរលក: lessons/lesson-09.md
+  - ជំពូកទី៤៖ ការវិភាគរូបភាព:
+      - មេរៀនទី១០៖ សន្ទស្សន៍ស្ពិចត្រាល់: lessons/lesson-10.md
+      - មេរៀនទី១១៖ ការចាត់ថ្នាក់គ្មានការណែនាំ: lessons/lesson-11.md
+      - មេរៀនទី១២៖ ការចាត់ថ្នាក់មានការណែនាំ: lessons/lesson-12.md
+      - មេរៀនទី១៣៖ ការវាយតម្លៃភាពត្រឹមត្រូវ: lessons/lesson-13.md
+  - ជំពូកទី៥៖ ការអនុវត្ត:
+      - មេរៀនទី១៤៖ ការរកការផ្លាស់ប្ដូរ និងស៊េរីពេលវេលា: lessons/lesson-14.md
+      - មេរៀនទី១៥៖ រ៉ាដា SAR និងគម្រោងបញ្ចប់វគ្គ: lessons/lesson-15.md
+  - សៀវភៅអនុវត្ត (លំហាត់ QGIS):
+      - លំហាត់ទី១៖ ការយកព័ត៌មានពីចម្ងាយជាអ្វី: workbook/lab-01.md
+      - លំហាត់ទី២៖ រលកអេឡិចត្រូម៉ាញេទិច និងបរិយាកាស: workbook/lab-02.md
+      - លំហាត់ទី៣៖ អន្តរកម្មជាមួយផ្ទៃដី និងហត្ថលេខាស្ពិចត្រាល់: workbook/lab-03.md
+      - លំហាត់ទី៤៖ ឧបករណ៍ចាប់សញ្ញា និងគន្លងផ្កាយរណប: workbook/lab-04.md
+      - លំហាត់ទី៥៖ គុណភាពបង្ហាញទាំងបួន: workbook/lab-05.md
+      - លំហាត់ទី៦៖ ប្រភពរូបភាព និងការទាញយក: workbook/lab-06.md
+      - លំហាត់ទី៧៖ ការកែតម្រូវរ៉ាដ្យូម៉ែត្រ និងបរិយាកាស: workbook/lab-07.md
+      - លំហាត់ទី៨៖ ការកែតម្រូវធរណីមាត្រ និងការរួមផ្សំរូបភាព: workbook/lab-08.md
+      - លំហាត់ទី៩៖ ការបង្ហាញរូបភាព និងបន្សំក្រុមរលក: workbook/lab-09.md
+      - លំហាត់ទី១០៖ សន្ទស្សន៍ស្ពិចត្រាល់: workbook/lab-10.md
+      - លំហាត់ទី១១៖ ការចាត់ថ្នាក់គ្មានការណែនាំ: workbook/lab-11.md
+      - លំហាត់ទី១២៖ ការចាត់ថ្នាក់មានការណែនាំ: workbook/lab-12.md
+      - លំហាត់ទី១៣៖ ការវាយតម្លៃភាពត្រឹមត្រូវ: workbook/lab-13.md
+      - លំហាត់ទី១៤៖ ការរកការផ្លាស់ប្ដូរ និងស៊េរីពេលវេលា: workbook/lab-14.md
+      - លំហាត់ទី១៥៖ រ៉ាដា SAR និងគម្រោងបញ្ចប់វគ្គ: workbook/lab-15.md
+  - ឧបសម្ព័ន្ធ:
+      - ក៖ ដំឡើង QGIS: appendix/a-qgis-install.md
+      - ខ៖ ទិន្នន័យ និងរូបភាពផ្កាយរណប: appendix/b-imagery-data.md
+      - គ៖ ឯកសារយោង: appendix/c-references.md
+  - វាក្យសព្ទបច្ចេកទេស: glossary.md

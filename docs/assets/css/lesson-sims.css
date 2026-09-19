@@ -1,0 +1,60 @@
+/* Lesson simulators */
+.sim { margin: 1.2em 0; padding: 0.8em 1em; border: 1px solid var(--md-default-fg-color--lightest); border-top: 3px solid var(--md-primary-fg-color); border-radius: 6px; font-size: 0.75rem; }
+.sim-title { font-weight: 700; font-size: 0.85rem; margin-bottom: 0.4em; }
+.sim-title::before { content: "🧪 "; }
+.sim-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45em 1.1em; margin-bottom: 0.6em; }
+.sim-controls input[type=range] { vertical-align: middle; max-width: 150px; }
+.sim-controls select, .sim-input { font: inherit; padding: 0.2em 0.4em; border: 1px solid var(--md-default-fg-color--lighter); border-radius: 4px; background: var(--md-default-bg-color); color: var(--md-default-fg-color); }
+.sim-body { display: flex; gap: 0.8em; align-items: flex-start; }
+.sim-canvas-wrap { flex: 1 1 auto; min-width: 0; }
+.sim-canvas-wrap canvas { display: block; border-radius: 4px; touch-action: none; cursor: crosshair; }
+.sim-out { margin-top: 0.6em; padding: 0.5em 0.8em; background: var(--md-code-bg-color); border-radius: 4px; line-height: 1.7; }
+.sim-hint { opacity: 0.72; font-size: 0.68rem; }
+.sim-warn { color: #c62828; }
+.sim-btn, .sim-chip, .sim-seg button { font: inherit; font-size: 0.7rem; cursor: pointer; padding: 0.25em 0.7em; border: 1px solid var(--md-default-fg-color--lighter); background: var(--md-default-bg-color); color: var(--md-default-fg-color); border-radius: 4px; }
+.sim-chip { border-radius: 12px; margin: 0.1em; }
+.sim-btn:hover, .sim-chip:hover, .sim-seg button:hover { border-color: var(--md-primary-fg-color); }
+.sim-seg { display: inline-flex; flex-wrap: wrap; }
+.sim-seg button { border-radius: 0; margin-left: -1px; }
+.sim-seg button:first-child { border-radius: 4px 0 0 4px; } .sim-seg button:last-child { border-radius: 0 4px 4px 0; }
+.sim-seg button.on { background: var(--md-primary-fg-color); color: var(--md-primary-bg-color); border-color: var(--md-primary-fg-color); }
+.md-typeset .sim table.sim-table { display: table; font-size: 0.7rem; margin: 0.3em 0; }
+.md-typeset .sim .sim-table th, .md-typeset .sim .sim-table td { padding: 0.2em 0.6em; }
+.sim .ft-ok td, .sim .ft-ok { background: rgba(46,125,50,.12); } .sim .ft-warn td { background: rgba(249,168,37,.18); } .sim .ft-bad td { background: rgba(198,40,40,.12); }
+.vd-list, .gr-tab { flex: 0 0 170px; max-height: 380px; overflow: auto; }
+.rr-big { font-size: 1.05em; color: var(--md-primary-fg-color); }
+/* layer stack */
+.ls-stage { perspective: 1100px; height: 460px; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+.ls-stack { position: relative; width: min(100%, 520px); aspect-ratio: 600 / 420; transform-style: preserve-3d; transition: transform .15s; }
+.ls-layer { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .15s, opacity .3s; }
+.ls-layer canvas { width: 100%; height: 100%; display: block; }
+.ls-name { position: absolute; right: -6px; top: 6px; transform: translateX(100%); background: rgba(33,33,33,.8); color: #fff; padding: 1px 8px; border-radius: 10px; font-size: 0.68rem; white-space: nowrap; }
+.ls-flat .ls-name { display: none; }
+.ls-toggles label { margin-right: 0.5em; }
+/* join */
+.jn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8em; }
+/* predicates */
+.pr-grid { display: flex; flex-wrap: wrap; gap: 0.3em; margin-bottom: 0.3em; }
+.pr { padding: 0.15em 0.6em; border-radius: 10px; background: rgba(0,0,0,.06); opacity: .6; }
+.pr-on { background: rgba(46,125,50,.2); opacity: 1; font-weight: 700; }
+/* map algebra */
+.ma-grids { display: flex; flex-wrap: wrap; gap: 1em; }
+.ma-g { display: grid; grid-template-columns: repeat(6, 2.4em); gap: 2px; margin-top: 0.3em; }
+.ma-c { height: 2.4em; display: flex; align-items: center; justify-content: center; color: #fff; text-shadow: 0 0 3px #000; font-size: 0.68rem; border-radius: 2px; cursor: pointer; transition: transform .1s; }
+.ma-hl { outline: 3px solid #00e5ff; outline-offset: -1px; transform: scale(1.08); z-index: 1; }
+/* mcda thumbs */
+.mc-thumbs { flex: 0 0 120px; display: flex; flex-direction: column; gap: 0.4em; }
+.mc-thumbs canvas { width: 120px; image-rendering: pixelated; border: 1px solid var(--md-default-fg-color--lightest); display: block; }
+.mc-thumbs span { font-size: 0.65rem; }
+.ft-table td:last-child { max-width: 28em; }
+@media screen and (max-width: 700px) {
+  .sim-body { flex-direction: column; } .vd-list, .gr-tab { flex: 1 1 auto; max-height: 200px; width: 100%; }
+  .mc-thumbs { flex-direction: row; flex-wrap: wrap; } .mc-thumbs canvas { width: 70px; }
+  .jn-grid { grid-template-columns: 1fr; } .ls-stage { height: 320px; }
+}
+/* carto sims */
+.me-map { flex: 1 1 60%; }
+.me-q { flex: 0 0 38%; font-size: 0.74rem; }
+.me-row { padding: 0.35em 0.5em; margin: 0.3em 0; border-radius: 4px; }
+.me-row.ok { background: rgba(46,125,50,.14); color: #1b5e20; }
+.me-row.no { background: rgba(198,40,40,.08); color: #8e0000; }

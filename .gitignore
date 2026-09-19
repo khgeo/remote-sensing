@@ -1,0 +1,24 @@
+site/
+.venv/
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+
+# QGIS working files
+*.qgz~
+*.qgs~
+*.qgd
+*.gpkg-shm
+*.gpkg-wal
+
+# Large teaching datasets — distribute via Releases, not the repo
+data/**/*.tif
+data/**/*.img
+data/**/*.zip
+!data/**/README.md
+
+# PDF build output
+book/
+site/
