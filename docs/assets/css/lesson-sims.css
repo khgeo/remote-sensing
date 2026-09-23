@@ -58,3 +58,5 @@
 .me-row { padding: 0.35em 0.5em; margin: 0.3em 0; border-radius: 4px; }
 .me-row.ok { background: rgba(46,125,50,.14); color: #1b5e20; }
 .me-row.no { background: rgba(198,40,40,.08); color: #8e0000; }
+/* remote-sensing sims */
+.sim-controls-inline { display: flex; flex-wrap: wrap; gap: .35em .9em; }

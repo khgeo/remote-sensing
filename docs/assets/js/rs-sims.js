@@ -125,4 +125,243 @@
     el.querySelectorAll("select,input").forEach((x) => x.addEventListener("change", draw)); draw();
     window.addEventListener("resize", () => el.isConnected && draw());
   };
+
+  /* ---------- L2 · EM spectrum, atmospheric windows and sensor bands ---------- */
+  const S2BANDS = [["B1", 443, 20], ["B2", 490, 65], ["B3", 560, 35], ["B4", 665, 30], ["B5", 705, 15], ["B6", 740, 15], ["B7", 783, 20],
+    ["B8", 842, 115], ["B8A", 865, 20], ["B9", 945, 20], ["B10", 1375, 30], ["B11", 1610, 90], ["B12", 2190, 180]];
+  const L8BANDS = [["B1", 443, 16], ["B2", 482, 60], ["B3", 561, 57], ["B4", 655, 37], ["B5", 865, 28], ["B6", 1609, 85], ["B7", 2201, 187], ["B9", 1373, 20]];
+  /* very simplified atmospheric transmission (0.4–14 µm) for teaching */
+  const transmission = (um) => {
+    const dip = (c, w, d) => d * Math.exp(-((um - c) ** 2) / (2 * w * w));
+    if (um < 0.30) return 0.02;
+    let t = 0.95;
+    if (um < 0.40) t = 0.35 + (um - 0.30) * 5;                       // ozone / UV
+    t -= dip(0.76, 0.012, 0.35);                                      // O2
+    t -= dip(0.94, 0.03, 0.55) + dip(1.13, 0.04, 0.7);                // H2O
+    t -= dip(1.40, 0.06, 0.98) + dip(1.88, 0.07, 0.98);               // H2O (blocked)
+    t -= dip(2.70, 0.16, 0.99) + dip(4.30, 0.12, 0.95);               // H2O / CO2
+    t -= dip(6.20, 0.45, 0.98);                                       // H2O
+    t -= dip(9.60, 0.22, 0.45);                                       // O3
+    if (um > 5.2 && um < 7.6) t = Math.min(t, 0.06);
+    if (um > 13.5) t = Math.max(0.03, t - (um - 13.5) * 0.25);
+    return clamp(t, 0.01, 0.98);
+  };
+  window.EXTRA_SIMS["rs-spectrum"] = (el) => {
+    const { cv, ctx, out, q } = shell(el, "វិសាលគមអេឡិចត្រូម៉ាញេទិច និងបង្អួចបរិយាកាស",
+      `<span class="sim-seg sp-s"><button type="button" data-s="s2" class="on">Sentinel-2</button><button type="button" data-s="l8">Landsat 8/9</button><button type="button" data-s="none">គ្មានក្រុមរលក</button></span>
+       <label><input type="checkbox" class="sp-t" checked> ខ្សែបញ្ជូនបរិយាកាស</label>
+       <span class="sim-hint">ដាក់កណ្ដុរលើក្រាប ដើម្បីអានរលក និងការបញ្ជូន</span>`);
+    const W = 640, H = 330, X0 = 48, X1 = 620, Y0 = 40, Y1 = 220;
+    const lo = Math.log10(0.35), hi = Math.log10(14);
+    const X = (um) => X0 + ((Math.log10(um) - lo) / (hi - lo)) * (X1 - X0);
+    let hover = null;
+    const REG = [[0.38, 0.45, "ស្វាយ", "#7e57c2"], [0.45, 0.50, "ខៀវ", "#1e88e5"], [0.50, 0.57, "បៃតង", "#43a047"], [0.57, 0.59, "លឿង", "#fdd835"],
+      [0.59, 0.62, "ទឹកក្រូច", "#fb8c00"], [0.62, 0.75, "ក្រហម", "#e53935"], [0.75, 1.3, "NIR", "#8d6e63"], [1.3, 3.0, "SWIR", "#6d4c41"], [3.0, 14, "កំដៅ (TIR)", "#455a64"]];
+    const draw = () => {
+      fit(cv, ctx, W, H); const src = el.querySelector(".sp-s .on").dataset.s, showT = q(".sp-t").checked;
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+      REG.forEach(([a, b, name, col]) => { ctx.fillStyle = col; ctx.globalAlpha = 0.16; ctx.fillRect(X(a), Y0, X(b) - X(a), Y1 - Y0); ctx.globalAlpha = 1;
+        if (X(b) - X(a) > 26) { ctx.save(); ctx.translate((X(a) + X(b)) / 2, Y0 - 6); ctx.fillStyle = col; ctx.font = `10px ${font()}`; ctx.textAlign = "center"; ctx.fillText(name, 0, 0); ctx.restore(); } });
+      ctx.textAlign = "left";
+      if (showT) { ctx.beginPath();
+        for (let i = 0; i <= 600; i++) { const um = 10 ** (lo + ((hi - lo) * i) / 600), x = X(um), y = Y1 - transmission(um) * (Y1 - Y0);
+          i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+        ctx.lineTo(X1, Y1); ctx.lineTo(X0, Y1); ctx.closePath(); ctx.fillStyle = "rgba(2,119,189,.18)"; ctx.fill();
+        ctx.beginPath();
+        for (let i = 0; i <= 600; i++) { const um = 10 ** (lo + ((hi - lo) * i) / 600), x = X(um), y = Y1 - transmission(um) * (Y1 - Y0);
+          i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+        ctx.strokeStyle = "#0277bd"; ctx.lineWidth = 1.6; ctx.stroke(); }
+      ctx.strokeStyle = "#555"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(X0, Y1); ctx.lineTo(X1, Y1); ctx.moveTo(X0, Y0); ctx.lineTo(X0, Y1); ctx.stroke();
+      ctx.font = `11px ${font()}`; ctx.fillStyle = "#555";
+      [0.4, 0.5, 0.7, 1, 1.5, 2, 3, 5, 8, 12].forEach((t) => { ctx.fillText(String(t).replace(".", ","), X(t) - 6, Y1 + 16);
+        ctx.strokeStyle = "#eee"; ctx.beginPath(); ctx.moveTo(X(t), Y0); ctx.lineTo(X(t), Y1); ctx.stroke(); });
+      ctx.fillText("មីក្រូម៉ែត្រ (µm)", X1 - 70, Y1 + 32); ctx.save(); ctx.translate(14, (Y0 + Y1) / 2 + 30); ctx.rotate(-Math.PI / 2); ctx.fillText("ការបញ្ជូន ០–១០០%", 0, 0); ctx.restore();
+      const bands = src === "s2" ? S2BANDS : src === "l8" ? L8BANDS : [];
+      bands.forEach(([n, c, w]) => { const um = c / 1000, x1 = X((c - w / 2) / 1000), x2 = X((c + w / 2) / 1000);
+        ctx.fillStyle = "rgba(230,81,0,.55)"; ctx.fillRect(x1, Y1 - 12, Math.max(1.6, x2 - x1), 12);
+        ctx.fillStyle = "#bf360c"; ctx.font = `9px ${font()}`; ctx.save(); ctx.translate((x1 + x2) / 2 + 3, Y1 + 30); ctx.rotate(-Math.PI / 3); ctx.fillText(n, 0, 0); ctx.restore(); });
+      if (src === "l8") { [10.9, 12.0].forEach((um, i) => { const x = X(um);
+        ctx.fillStyle = "rgba(230,81,0,.55)"; ctx.fillRect(x - 4, Y1 - 12, 8, 12);
+        ctx.fillStyle = "#bf360c"; ctx.save(); ctx.translate(x + 3, Y1 + 34); ctx.rotate(-Math.PI / 3); ctx.fillText("B" + (10 + i), 0, 0); ctx.restore(); }); }
+      const info = hover ? `រលក <b>${fmtN(hover.um, 2)} µm</b> · ការបញ្ជូន <b>${fmtN(transmission(hover.um) * 100)}%</b>` : "ដាក់កណ្ដុរលើក្រាបដើម្បីអានតម្លៃ";
+      out.innerHTML = `${info}<br><span class="sim-hint">តំបន់ដែលការបញ្ជូនខ្ពស់ហៅថា <b>បង្អួចបរិយាកាស</b>។ សង្កេតថាក្រុមរលករបស់ផ្កាយរណបស្ថិតក្នុងបង្អួច ហើយចន្លោះ ១,៤ និង ១,៩ µm គ្មានក្រុមរលកសម្រាប់ផ្ទៃដីទេ ព្រោះចំហាយទឹកស្រូបស្ទើរទាំងស្រុង (លើកលែង B10 ដែលប្រើរកពពក cirrus)។</span>`;
+    };
+    cv.addEventListener("mousemove", (e) => { const r = cv.getBoundingClientRect(), sx = r.width / W, x = (e.clientX - r.left) / sx;
+      hover = x >= X0 && x <= X1 ? { um: 10 ** (lo + ((x - X0) / (X1 - X0)) * (hi - lo)) } : null; draw(); });
+    cv.addEventListener("mouseleave", () => { hover = null; draw(); });
+    el.querySelectorAll(".sp-s button").forEach((b) => (b.onclick = () => { el.querySelectorAll(".sp-s button").forEach((x) => x.classList.remove("on")); b.classList.add("on"); draw(); }));
+    q(".sp-t").addEventListener("change", draw); draw();
+    window.addEventListener("resize", () => el.isConnected && draw());
+  };
+
+  /* ---------- L2 · scattering ---------- */
+  window.EXTRA_SIMS["rs-scatter"] = (el) => {
+    const { cv, ctx, out, q } = shell(el, "ការខ្ចាត់ខ្ចាយក្នុងបរិយាកាស",
+      `<span class="sim-seg sc-t"><button type="button" data-t="rayleigh" class="on">Rayleigh (ម៉ូលេគុល)</button><button type="button" data-t="mie">Mie (អាកាសត្រាត)</button><button type="button" data-t="non">មិនជ្រើសរើស (ពពក)</button></span>`);
+    const W = 640, H = 300;
+    const draw = () => {
+      fit(cv, ctx, W, H); const t = el.querySelector(".sc-t .on").dataset.t;
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+      const X0 = 60, X1 = 340, Y0 = 40, Y1 = 220;
+      const bands = [["ខៀវ", 0.47, "#1e88e5"], ["បៃតង", 0.56, "#43a047"], ["ក្រហម", 0.66, "#e53935"], ["NIR", 0.84, "#6d4c41"], ["SWIR", 1.6, "#455a64"]];
+      const rel = (um) => (t === "rayleigh" ? Math.pow(0.47 / um, 4) : t === "mie" ? Math.pow(0.47 / um, 1.3) : 1);
+      const mx = Math.max(...bands.map(([, u]) => rel(u)));
+      ctx.strokeStyle = "#555"; ctx.beginPath(); ctx.moveTo(X0, Y1); ctx.lineTo(X1, Y1); ctx.stroke();
+      bands.forEach(([n, um, col], i) => { const h = (rel(um) / mx) * (Y1 - Y0), x = X0 + 10 + i * 54;
+        ctx.fillStyle = col; ctx.fillRect(x, Y1 - h, 34, h);
+        ctx.fillStyle = "#333"; ctx.font = `11px ${font()}`; ctx.fillText(n, x - 2, Y1 + 16); ctx.fillText(fmtN(rel(um) / mx * 100) + "%", x - 2, Y1 - h - 6); });
+      ctx.fillText("ការខ្ចាត់ខ្ចាយធៀប (ខៀវ = ១០០%)", X0, Y0 - 12);
+      // picture
+      const cx = 480, cy = 130;
+      ctx.fillStyle = "#e3f2fd"; ctx.fillRect(390, 30, 230, 200);
+      ctx.strokeStyle = "#90a4ae"; ctx.strokeRect(390, 30, 230, 200);
+      const n = t === "rayleigh" ? 90 : t === "mie" ? 40 : 14, r = t === "rayleigh" ? 1.6 : t === "mie" ? 4 : 12;
+      let seed = 4; const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
+      for (let i = 0; i < n; i++) { ctx.beginPath(); ctx.arc(396 + rnd() * 218, 36 + rnd() * 188, r, 0, 7);
+        ctx.fillStyle = t === "non" ? "rgba(255,255,255,.95)" : "rgba(120,144,156,.55)"; ctx.fill(); }
+      ctx.strokeStyle = t === "rayleigh" ? "#1e88e5" : t === "mie" ? "#90a4ae" : "#fff"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(390, 60); ctx.lineTo(cx, cy); ctx.stroke();
+      for (let a = 0; a < 8; a++) { const ang = (a / 8) * Math.PI * 2; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(ang) * 40, cy + Math.sin(ang) * 40); ctx.stroke(); }
+      const NOTE = { rayleigh: "ការខ្ចាត់ខ្ចាយ Rayleigh កើតពីម៉ូលេគុលខ្យល់ ដែលតូចជាងរលកច្រើន។ កម្លាំងរបស់វាសមាមាត្រនឹង ១/λ⁴ ដូច្នេះរលកខៀវខ្ចាត់ខ្ចាយខ្លាំងជាងក្រហមប្រហែល ៤ ដង។ នេះជាមូលហេតុដែលមេឃមានពណ៌ខៀវ ហើយក្រុមរលកខៀវ (B2) មានអ័ព្ទច្រើនជាងគេក្នុងរូបភាព។",
+        mie: "ការខ្ចាត់ខ្ចាយ Mie កើតពីភាគល្អិតដែលមានទំហំប្រហាក់ប្រហែលរលក ដូចជាធូលី ផ្សែង និងអាកាសត្រាត។ វាប៉ះពាល់រលកវែងជាងផង ហើយធ្វើឲ្យរូបភាពស្រអាប់ក្នុងថ្ងៃដែលមានផ្សែងដុតចម្ការ។",
+        non: "ការខ្ចាត់ខ្ចាយមិនជ្រើសរើសកើតពីដំណក់ទឹកក្នុងពពក ដែលធំជាងរលកច្រើន។ វាខ្ចាត់ខ្ចាយគ្រប់រលកស្មើៗគ្នា ដូច្នេះពពកមើលទៅពណ៌ស ហើយបាំងផ្ទៃដីទាំងស្រុងចំពោះឧបករណ៍អុបទិក។" }[t];
+      out.innerHTML = NOTE;
+    };
+    el.querySelectorAll(".sc-t button").forEach((b) => (b.onclick = () => { el.querySelectorAll(".sc-t button").forEach((x) => x.classList.remove("on")); b.classList.add("on"); draw(); }));
+    draw(); window.addEventListener("resize", () => el.isConnected && draw());
+  };
+
+  /* ---------- L3 · spectral signatures + pixel probe ---------- */
+  const SIG = {
+    "ទឹកស្អាត": { col: "#1565c0", v: [[0.44, .045], [0.49, .045], [0.56, .04], [0.665, .028], [0.705, .02], [0.842, .012], [1.61, .006], [2.19, .004]] },
+    "ទឹកល្បាក់": { col: "#4dd0e1", v: [[0.44, .06], [0.49, .075], [0.56, .105], [0.665, .11], [0.705, .10], [0.842, .06], [1.61, .02], [2.19, .012]] },
+    "ព្រៃឈើ": { col: "#1b5e20", v: [[0.44, .028], [0.49, .03], [0.56, .055], [0.665, .028], [0.705, .10], [0.842, .34], [1.61, .15], [2.19, .065]] },
+    "ស្រែខ្ចី": { col: "#7cb342", v: [[0.44, .04], [0.49, .045], [0.56, .085], [0.665, .045], [0.705, .13], [0.842, .40], [1.61, .21], [2.19, .10]] },
+    "ស្រែស្ងួត": { col: "#c0ca33", v: [[0.44, .07], [0.49, .09], [0.56, .14], [0.665, .17], [0.705, .20], [0.842, .28], [1.61, .33], [2.19, .26]] },
+    "ដីទទេ": { col: "#a1887f", v: [[0.44, .10], [0.49, .13], [0.56, .17], [0.665, .21], [0.705, .23], [0.842, .27], [1.61, .33], [2.19, .29]] },
+    "តំបន់សាងសង់": { col: "#b71c1c", v: [[0.44, .11], [0.49, .125], [0.56, .145], [0.665, .16], [0.705, .17], [0.842, .20], [1.61, .26], [2.19, .23]] },
+  };
+  window.EXTRA_SIMS["rs-signature"] = (el) => {
+    const names = Object.keys(SIG);
+    const { cv, ctx, out, q } = shell(el, "ហត្ថលេខាស្ពិចត្រាល់",
+      `<span class="sim-controls-inline">${names.map((n, i) => `<label><input type="checkbox" class="sg" value="${n}" ${i < 3 ? "checked" : ""}> ${n}</label>`).join(" ")}</span>
+       <label><input type="checkbox" class="sg-b" checked> ក្រុមរលក Sentinel-2</label>`);
+    const W = 640, H = 340, X0 = 54, X1 = 470, Y0 = 30, Y1 = 250;
+    const lo = 0.4, hi = 2.35;
+    const X = (um) => X0 + ((um - lo) / (hi - lo)) * (X1 - X0), Y = (r) => Y1 - (r / 0.45) * (Y1 - Y0);
+    const draw = () => {
+      fit(cv, ctx, W, H);
+      const sel = [...el.querySelectorAll(".sg")].filter((c) => c.checked).map((c) => c.value);
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+      if (q(".sg-b").checked) S2BANDS.filter(([, c]) => c / 1000 >= lo && c / 1000 <= hi && c !== 1375).forEach(([n, c, w]) => {
+        ctx.fillStyle = "rgba(120,144,156,.14)"; ctx.fillRect(X((c - w / 2) / 1000), Y0, Math.max(1.5, X((c + w / 2) / 1000) - X((c - w / 2) / 1000)), Y1 - Y0);
+        ctx.fillStyle = "#78909c"; ctx.font = `8px ${font()}`; ctx.save(); ctx.translate(X(c / 1000) + 3, Y1 + 26); ctx.rotate(-Math.PI / 3); ctx.fillText(n, 0, 0); ctx.restore(); });
+      ctx.strokeStyle = "#555"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(X0, Y1); ctx.lineTo(X1, Y1); ctx.moveTo(X0, Y0); ctx.lineTo(X0, Y1); ctx.stroke();
+      ctx.font = `11px ${font()}`; ctx.fillStyle = "#555";
+      [0, 0.1, 0.2, 0.3, 0.4].forEach((r) => { ctx.fillText(fmtN(r * 100), 22, Y(r) + 4); ctx.strokeStyle = "#f0f0f0"; ctx.beginPath(); ctx.moveTo(X0, Y(r)); ctx.lineTo(X1, Y(r)); ctx.stroke(); });
+      [0.5, 1.0, 1.5, 2.0].forEach((u) => ctx.fillText(String(u).replace(".", ","), X(u) - 8, Y1 + 16));
+      ctx.fillText("ការឆ្លុះបញ្ចាំង %", 16, Y0 - 10); ctx.fillText("រលក µm", X1 - 44, Y1 + 34);
+      sel.forEach((n) => { const s2 = SIG[n]; ctx.beginPath();
+        s2.v.forEach(([um, r], i) => (i ? ctx.lineTo(X(um), Y(r)) : ctx.moveTo(X(um), Y(r))));
+        ctx.strokeStyle = s2.col; ctx.lineWidth = 2.2; ctx.stroke();
+        s2.v.forEach(([um, r]) => { ctx.beginPath(); ctx.arc(X(um), Y(r), 2.6, 0, 7); ctx.fillStyle = s2.col; ctx.fill(); }); });
+      let ly = Y0 + 10; ctx.font = `12px ${font()}`;
+      sel.forEach((n) => { ctx.strokeStyle = SIG[n].col; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(492, ly); ctx.lineTo(516, ly); ctx.stroke();
+        ctx.fillStyle = "#333"; ctx.fillText(n, 524, ly + 4); ly += 22; });
+      // separability hint at B4 / B8
+      if (sel.length >= 2) {
+        const at = (n, um) => { const v = SIG[n].v; for (let i = 1; i < v.length; i++) if (v[i][0] >= um) { const [u0, r0] = v[i - 1], [u1, r1] = v[i]; return r0 + ((r1 - r0) * (um - u0)) / (u1 - u0); } return v[v.length - 1][1]; };
+        const pairs = [];
+        for (let i = 0; i < sel.length; i++) for (let j = i + 1; j < sel.length; j++) {
+          const d = [0.665, 0.842, 1.61].map((u) => Math.abs(at(sel[i], u) - at(sel[j], u)));
+          const best = [["B4", d[0]], ["B8", d[1]], ["B11", d[2]]].sort((a, b) => b[1] - a[1])[0];
+          pairs.push(`${sel[i]} ↔ ${sel[j]}៖ បែងចែកបានល្អបំផុតក្នុង <b>${best[0]}</b> (ភាពខុសគ្នា ${fmtN(best[1] * 100, 1)} ពិន្ទុ%)`);
+        }
+        out.innerHTML = pairs.slice(0, 4).join("<br>") + `<br><span class="sim-hint">តម្លៃជាតម្លៃធម្មតា (typical) សម្រាប់បង្រៀន។ ហត្ថលេខាពិតប្រែប្រួលតាមសំណើម រដូវ និងមុំមើល។</span>`;
+      } else out.innerHTML = `ជ្រើសយ៉ាងតិចពីរប្រភេទ ដើម្បីប្រៀបធៀបភាពបែងចែក។`;
+    };
+    el.querySelectorAll("input").forEach((c) => c.addEventListener("change", draw)); draw();
+    window.addEventListener("resize", () => el.isConnected && draw());
+  };
+
+  /* pixel probe on the sample scene */
+  window.EXTRA_SIMS["rs-probe"] = async (el) => {
+    const S = await loadScene();
+    const { cv, ctx, out } = shell(el, "ចុចលើរូបភាព ដើម្បីអានហត្ថលេខារបស់ក្រឡា", `<span class="sim-hint">ចុច ឬអូសលើរូបភាពខាងឆ្វេង</span>`);
+    const W = 640, H = 330, MS = 290, ox = 12, oy = 20;
+    let pick = { x: Math.floor(S.n * 0.3), y: Math.floor(S.n * 0.3) };
+    const um = [0.49, 0.56, 0.665, 0.842, 1.61, 2.19];
+    const draw = () => {
+      fit(cv, ctx, W, H);
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+      putScaled(ctx, composite(S, [2, 1, 0], S.n, false), ox, oy, MS);
+      const px = ox + (pick.x / S.n) * MS, py = oy + (pick.y / S.n) * MS;
+      ctx.strokeStyle = "#ffeb3b"; ctx.lineWidth = 2; ctx.strokeRect(px - 5, py - 5, 10, 10);
+      const i = pick.y * S.n + pick.x, vals = [0, 1, 2, 3, 4, 5].map((b) => refl(S, b, i));
+      const X0 = 340, X1 = 620, Y0 = 40, Y1 = 230;
+      const X = (u) => X0 + ((Math.log10(u) - Math.log10(0.45)) / (Math.log10(2.3) - Math.log10(0.45))) * (X1 - X0);
+      const Y = (r) => Y1 - (r / 0.45) * (Y1 - Y0);
+      ctx.strokeStyle = "#555"; ctx.beginPath(); ctx.moveTo(X0, Y1); ctx.lineTo(X1, Y1); ctx.moveTo(X0, Y0); ctx.lineTo(X0, Y1); ctx.stroke();
+      ctx.font = `10px ${font()}`; ctx.fillStyle = "#666";
+      [0, 0.1, 0.2, 0.3, 0.4].forEach((r) => ctx.fillText(fmtN(r * 100), X0 - 24, Y(r) + 4));
+      ctx.beginPath(); vals.forEach((r, k) => (k ? ctx.lineTo(X(um[k]), Y(r)) : ctx.moveTo(X(um[k]), Y(r))));
+      ctx.strokeStyle = "#e65100"; ctx.lineWidth = 2.2; ctx.stroke();
+      vals.forEach((r, k) => { ctx.beginPath(); ctx.arc(X(um[k]), Y(r), 3, 0, 7); ctx.fillStyle = "#e65100"; ctx.fill();
+        ctx.fillStyle = "#666"; ctx.fillText(S.names[k], X(um[k]) - 8, Y1 + 14); });
+      const ndvi = (vals[3] - vals[2]) / (vals[3] + vals[2]), ndwi = (vals[1] - vals[3]) / (vals[1] + vals[3]);
+      out.innerHTML = `ក្រឡា (${kh(pick.x)}, ${kh(pick.y)}) · ក្រប់ដីពិត៖ <b>${S.classes[S.cls[i]]}</b><br>` +
+        S.names.map((n, k) => `${n} ${fmtN(vals[k] * 100, 1)}%`).join(" · ") +
+        `<br>NDVI = <b>${fmtN(ndvi, 2)}</b> · NDWI = <b>${fmtN(ndwi, 2)}</b> <span class="sim-hint">(សន្ទស្សន៍នឹងសិក្សាក្នុងមេរៀនទី១០)</span>`;
+    };
+    const pickAt = (e) => { const r = cv.getBoundingClientRect(), s2 = r.width / W;
+      const x = (e.clientX - r.left) / s2 - ox, y = (e.clientY - r.top) / s2 - oy;
+      if (x < 0 || y < 0 || x > MS || y > MS) return;
+      pick = { x: clamp(Math.floor((x / MS) * S.n), 0, S.n - 1), y: clamp(Math.floor((y / MS) * S.n), 0, S.n - 1) }; draw(); };
+    cv.addEventListener("pointerdown", pickAt);
+    cv.addEventListener("pointermove", (e) => { if (e.buttons) pickAt(e); });
+    draw(); window.addEventListener("resize", () => el.isConnected && draw());
+  };
+
+  /* ---------- L4 · orbit, swath and revisit ---------- */
+  let wl = null;
+  window.EXTRA_SIMS["rs-orbit"] = async (el) => {
+    if (!wl) wl = await (await fetch(new URL("../../assets/data/world_land.json", location.href))).json();
+    const { cv, ctx, out, q } = shell(el, "គន្លង ទទឹងថត និងរយៈពេលមកម្ដងទៀត",
+      `<label>ផ្កាយរណប <select class="ob-s"><option value="s2">Sentinel-2 (២៩០ គម · ៥ ថ្ងៃ)</option><option value="l8">Landsat 8/9 (១៨៥ គម · ១៦ ថ្ងៃ)</option><option value="modis">MODIS (២ ៣៣០ គម · ១ ថ្ងៃ)</option></select></label>
+       <label>ចំនួនគន្លង <b class="ob-nv"></b> <input type="range" class="ob-n" min="1" max="30" value="8"></label>`);
+    const W = 640, H = 330, X0 = 10, Y0 = 20, MW = 620, MH = 290;
+    const SAT = { s2: { swath: 290, days: 5, orbits: 14.3, col: "#e65100" }, l8: { swath: 185, days: 16, orbits: 14.6, col: "#1565c0" }, modis: { swath: 2330, days: 1, orbits: 14.1, col: "#2e7d32" } };
+    const X = (lon) => X0 + ((lon + 180) / 360) * MW, Y = (lat) => Y0 + ((90 - lat) / 180) * MH;
+    const draw = () => {
+      fit(cv, ctx, W, H); const s2 = SAT[q(".ob-s").value], n = +q(".ob-n").value;
+      q(".ob-nv").textContent = kh(n);
+      ctx.fillStyle = "#dbeafe"; ctx.fillRect(X0, Y0, MW, MH);
+      ctx.fillStyle = "#cfd8c8"; ctx.strokeStyle = "#9aa88f"; ctx.lineWidth = 0.5;
+      wl.land.forEach((ring) => { ctx.beginPath(); ring.forEach(([lo2, la], i) => (i ? ctx.lineTo(X(lo2), Y(la)) : ctx.moveTo(X(lo2), Y(la)))); ctx.closePath(); ctx.fill(); ctx.stroke(); });
+      const swathDeg = (s2.swath / 111) / 2;
+      ctx.globalAlpha = 0.32; ctx.fillStyle = s2.col;
+      for (let k = 0; k < n; k++) {
+        const lon0 = 180 - (((360 / s2.orbits) * k) % 360);
+        for (let lat = -82; lat < 82; lat += 2) {
+          const c1 = Math.max(0.25, Math.cos((lat * Math.PI) / 180));
+          const lonC = lon0 + 12 * Math.sin((lat * Math.PI) / 180);
+          const half = swathDeg / c1;
+          let a = lonC - half, b2 = lonC + half;
+          const seg = (aa, bb) => { const x1 = X(aa), x2 = X(bb); ctx.fillRect(Math.min(x1, x2), Y(lat + 2), Math.abs(x2 - x1), Math.abs(Y(lat) - Y(lat + 2)) + 0.6); };
+          a = ((a + 540) % 360) - 180; b2 = ((b2 + 540) % 360) - 180;
+          if (a <= b2) seg(a, b2); else { seg(a, 180); seg(-180, b2); }
+        }
+      }
+      ctx.globalAlpha = 1;
+      // Cambodia marker
+      ctx.beginPath(); ctx.arc(X(105), Y(12.5), 4, 0, 7); ctx.fillStyle = "#c62828"; ctx.fill();
+      ctx.font = `11px ${font()}`; ctx.fillStyle = "#b71c1c"; ctx.fillText("កម្ពុជា", X(105) + 7, Y(12.5) + 4);
+      ctx.strokeStyle = "#90a4ae"; ctx.strokeRect(X0, Y0, MW, MH);
+      const perDay = (24 * 60) / (1440 / s2.orbits);
+      out.innerHTML = `ទទឹងថត <b>${fmtN(s2.swath)} គម</b> · គន្លងប្រហែល <b>${fmtN(s2.orbits, 1)}</b> ជុំក្នុងមួយថ្ងៃ · គ្របដណ្ដប់ពេញផែនដីក្នុង <b>${kh(s2.days)}</b> ថ្ងៃ<br>` +
+        `<span class="sim-hint">ឆ្នូតនីមួយៗជាតំបន់ដែលឧបករណ៍ថតក្នុងមួយជុំ។ ទទឹងថតតូច (Landsat) ត្រូវការគន្លងច្រើនជាង ដើម្បីគ្របដណ្ដប់ផែនដី ដូច្នេះរយៈពេលមកម្ដងទៀតវែងជាង។ រូបនេះជាគំនូរបំព្រួញ មិនមែនការគណនាគន្លងពិតទេ។</span>`;
+    };
+    el.querySelectorAll("select,input").forEach((x) => x.addEventListener("input", draw)); draw();
+    window.addEventListener("resize", () => el.isConnected && draw());
+  };
 })();
