@@ -13,6 +13,7 @@
   const font = () => getComputedStyle(document.body).fontFamily;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   window.EXTRA_SIMS = window.EXTRA_SIMS || {};
+  const ramp = (t, stops) => { t = clamp(t, 0, 1); const n = stops.length - 1, i = Math.min(n - 1, Math.floor(t * n)), f = t * n - i; const a = stops[i], b = stops[i + 1]; return `rgb(${a.map((v, k) => Math.round(v + (b[k] - v) * f)).join(",")})`; };
 
   /* ---------- sample scene ---------- */
   let scene = null;
@@ -482,6 +483,244 @@
         (corr ? "(ក្រោយកែតម្រូវ)" : "(មានពន្លឺផ្លូវ)") +
         `<br>NDVI នៃព្រៃឈើ៖ មុនកែ <b>${fmtN(ndviRaw, 2)}</b> · ក្រោយកែ <b>${fmtN(ndviCorr, 2)}</b>` +
         `<br><span class="sim-hint">ពន្លឺផ្លូវបន្ថែមតម្លៃថេរ ជាពិសេសក្នុងក្រុមរលកខ្លី ដូច្នេះអ៊ីស្តូក្រាមរំកិលទៅស្ដាំ ហើយ NDVI ធ្លាក់។ វិធី Dark Object Subtraction សន្មតថាក្រឡាងងឹតបំផុត (ទឹកជ្រៅ ឬស្រមោល) គួរមានតម្លៃជិតសូន្យ ហើយដកតម្លៃនោះចេញពីគ្រប់ក្រឡា។ ការបែងចែកនឹង cos(មុំព្រះអាទិត្យ) កែឥទ្ធិពលនៃមុំបំភ្លឺ។</span>`;
+    };
+    el.querySelectorAll("input").forEach((x) => x.addEventListener("input", draw)); draw();
+    window.addEventListener("resize", () => el.isConnected && draw());
+  };
+
+  /* ---------- L8 · geometric distortion, GCPs and mosaicking ---------- */
+  window.EXTRA_SIMS["rs-geocorrect"] = async (el) => {
+    const S = await loadScene();
+    const { cv, ctx, out, q } = shell(el, "ការខូចទ្រង់ទ្រាយធរណីមាត្រ និងចំណុចត្រួតពិនិត្យ (GCP)",
+      `<label>ការខូចទ្រង់ទ្រាយ <select class="gc-d"><option value="none">គ្មាន (ត្រឹមត្រូវ)</option><option value="skew" selected>ជម្រិត (ដោយសារជម្រាលភូមិសាស្ត្រ)</option><option value="shift">រំកិល (offset)</option><option value="rotate">បង្វិល</option></select></label>
+       <label>ចំនួន GCP <b class="gc-nv"></b> <input type="range" class="gc-n" min="3" max="12" value="4"></label>
+       <label><input type="checkbox" class="gc-c"> អនុវត្តការកែតម្រូវ (georeferencing)</label>`);
+    const W = 640, H = 350, M = 300, ox = 14, oy = 18;
+    const GCP = [[0.15, 0.18], [0.82, 0.12], [0.12, 0.85], [0.85, 0.82], [0.5, 0.5], [0.3, 0.68], [0.68, 0.3], [0.4, 0.15], [0.15, 0.5], [0.85, 0.5], [0.5, 0.85], [0.5, 0.15]];
+    const distort = (u, v, mode) => { if (mode === "none") return [u, v];
+      if (mode === "skew") return [u + 0.18 * v * (1 - v), v + 0.10 * u];
+      if (mode === "shift") return [u + 0.06, v - 0.05];
+      if (mode === "rotate") { const cx = 0.5, cy = 0.5, a = 0.09, du = u - cx, dv = v - cy;
+        return [cx + du * Math.cos(a) - dv * Math.sin(a), cy + du * Math.sin(a) + dv * Math.cos(a)]; }
+      return [u, v]; };
+    const draw = () => {
+      fit(cv, ctx, W, H); const mode = q(".gc-d").value, n = +q(".gc-n").value, corr = q(".gc-c").checked;
+      q(".gc-nv").textContent = kh(n);
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+      // draw distorted image via per-pixel remap (small preview grid for speed)
+      const size = 140, img = ctx.createImageData(size, size);
+      for (let py = 0; py < size; py++) for (let px = 0; px < size; px++) {
+        let u = px / size, v = py / size;
+        if (mode !== "none" && !corr) { const [du, dv] = distort(u, v, mode); u = du; v = dv; }
+        const sx = clamp(Math.floor(u * S.n), 0, S.n - 1), sy = clamp(Math.floor(v * S.n), 0, S.n - 1);
+        const i = sy * S.n + sx, o = (py * size + px) * 4;
+        img.data[o] = refl(S, 2, i) * 255 * 2.2; img.data[o + 1] = refl(S, 1, i) * 255 * 2.2; img.data[o + 2] = refl(S, 0, i) * 255 * 2.2; img.data[o + 3] = 255;
+      }
+      putScaled(ctx, img, ox, oy, M);
+      ctx.strokeStyle = "#555"; ctx.strokeRect(ox, oy, M, M);
+      // GCPs: reference (map) position vs where they land in the (possibly distorted) image
+      let rmse = 0;
+      GCP.slice(0, n).forEach(([u, v]) => {
+        const rx = ox + u * M, ry = oy + v * M;                 // true/reference position
+        let iu = u, iv = v;
+        if (mode !== "none" && !corr) [iu, iv] = distort(u, v, mode);
+        const ix = ox + iu * M, iy2 = oy + iv * M;
+        ctx.beginPath(); ctx.arc(rx, ry, 4, 0, 7); ctx.fillStyle = "#2e7d32"; ctx.fill(); ctx.strokeStyle = "#fff"; ctx.lineWidth = 1; ctx.stroke();
+        if (mode !== "none" && !corr) { ctx.beginPath(); ctx.arc(ix, iy2, 4, 0, 7); ctx.fillStyle = "#c62828"; ctx.fill();
+          ctx.strokeStyle = "rgba(198,40,40,.6)"; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(rx, ry); ctx.lineTo(ix, iy2); ctx.stroke(); ctx.setLineDash([]);
+          rmse += (rx - ix) ** 2 + (ry - iy2) ** 2; }
+      });
+      rmse = Math.sqrt(rmse / n) / M * 2000;                    // arbitrary metres scale for teaching
+      ctx.font = `12px ${font()}`; ctx.fillStyle = "#2e7d32"; ctx.fillText("● ទីតាំងយោង (ផែនទី)", 336, 40);
+      if (mode !== "none" && !corr) { ctx.fillStyle = "#c62828"; ctx.fillText("● ទីតាំងក្នុងរូបភាព (ខូច)", 336, 60); }
+      out.innerHTML = corr
+        ? `<b class="ft-ok">បានកែតម្រូវ</b> ដោយប្រើ ${kh(n)} ចំណុច GCP។ រូបភាពឥឡូវត្រូវនឹងព្រំដែនផែនទី។`
+        : mode === "none" ? "រូបភាពគ្មានការខូចទ្រង់ទ្រាយ។ ជ្រើសប្រភេទការខូចទ្រង់ទ្រាយ ដើម្បីមើលឥទ្ធិពល។"
+        : `RMSE ប៉ាន់ស្មាន៖ <b>${fmtN(rmse, 0)} ម</b> ជាមួយ ${kh(n)} ចំណុច។ ធីក «អនុវត្តការកែតម្រូវ» ដើម្បីមើលលទ្ធផលក្រោយកែ។` +
+          `<br><span class="sim-hint">GCP តិចពេក ឬចែកមិនស្មើ (ប្រមូលផ្ដុំតែជ្រុងមួយ) ធ្វើឲ្យការកែត្រឹមត្រូវតែជិតៗនោះ ឯតំបន់ឆ្ងាយនៅតែខូច។</span>`;
+    };
+    el.querySelectorAll("select,input").forEach((x) => x.addEventListener("input", draw)); draw();
+    window.addEventListener("resize", () => el.isConnected && draw());
+  };
+
+  /* ---------- L8 · mosaicking two tiles ---------- */
+  window.EXTRA_SIMS["rs-mosaic"] = async (el) => {
+    const S = await loadScene();
+    const { cv, ctx, out, q } = shell(el, "ការរួមផ្សំរូបភាព (Mosaicking)",
+      `<span class="sim-seg mo-m"><button type="button" data-m="none" class="on">គ្មានការកែសម្រួល</button><button type="button" data-m="feather">លាយគែម (Feathering)</button><button type="button" data-m="hist">ផ្គូផ្គងអ៊ីស្តូក្រាម</button></span>`);
+    const W = 640, H = 300;
+    const draw = () => {
+      fit(cv, ctx, W, H); const mode = el.querySelector(".mo-m .on").dataset.m;
+      const size = 150; const half = Math.floor(S.n / 2);
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+      const bright2 = mode === "hist" ? 1.0 : 1.45;             // right tile simulated "different acquisition"
+      const img = ctx.createImageData(S.n, S.n);
+      for (let y = 0; y < S.n; y++) for (let x = 0; x < S.n; x++) {
+        const i = y * S.n + x, o = i * 4, rightSide = x >= half;
+        const mult = rightSide ? bright2 : 1.0;
+        let a = 1;
+        if (mode === "feather") { const d = Math.abs(x - half); if (d < 14) a = d / 14; }
+        const under = !rightSide || mode !== "feather" ? [refl(S, 2, i), refl(S, 1, i), refl(S, 0, i)] : [refl(S, 2, i), refl(S, 1, i), refl(S, 0, i)];
+        const rgb = [refl(S, 2, i) * mult, refl(S, 1, i) * mult, refl(S, 0, i) * mult];
+        img.data[o] = clamp(rgb[0] * 255 * 2.2, 0, 255); img.data[o + 1] = clamp(rgb[1] * 255 * 2.2, 0, 255); img.data[o + 2] = clamp(rgb[2] * 255 * 2.2, 0, 255); img.data[o + 3] = 255;
+      }
+      putScaled(ctx, img, 14, 18, 300);
+      if (mode !== "feather") { ctx.strokeStyle = "#ffca28"; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
+        ctx.beginPath(); ctx.moveTo(14 + 150, 18); ctx.lineTo(14 + 150, 318); ctx.stroke(); ctx.setLineDash([]); }
+      ctx.font = `12px ${font()}`; ctx.fillStyle = "#333"; ctx.fillText("ព្រំរវាងសន្លឹកទាំងពីរ", 340, 40);
+      const NOTE = { none: "សន្លឹកទាំងពីរថតនៅថ្ងៃខុសគ្នា ដែលមានពន្លឺ ឬកម្រិតកែតម្រូវខុសគ្នាបន្តិច។ ព្រំរវាងសន្លឹកលេចធ្លោជាបន្ទាត់ត្រង់មើលឃើញច្បាស់។",
+        feather: "ការលាយគែម (feathering) ធ្វើឲ្យតម្លៃផ្លាស់ប្ដូរបន្តិចម្ដងៗលើគែម ជំនួសឲ្យប្ដូរភ្លាមៗ ដែលលាក់បន្ទាត់ព្រំ ប៉ុន្តែមិនកែភាពខុសគ្នានៃពន្លឺទេ។",
+        hist: "ការផ្គូផ្គងអ៊ីស្តូក្រាម កែសម្រួលការចែកចាយតម្លៃនៃសន្លឹកមួយ ឲ្យស្រដៀងនឹងមួយទៀត មុននឹងផ្សំ ដែលកាត់បន្ថយភាពខុសគ្នានៃពន្លឺដោយផ្ទាល់។" }[mode];
+      out.innerHTML = NOTE + `<br><span class="sim-hint">ការជ្រើសរូបភាពគ្រុមកាលបរិច្ឆេទ និងកែតម្រូវបរិយាកាសដូចគ្នា (មេរៀនទី៧) ជាដំណោះស្រាយល្អបំផុត ព្រោះការលាយគែម និងការផ្គូផ្គងគ្រាន់តែលាក់បញ្ហា មិនកែឫសគល់ទេ។</span>`;
+    };
+    el.querySelectorAll(".mo-m button").forEach((b) => (b.onclick = () => { el.querySelectorAll(".mo-m button").forEach((x) => x.classList.remove("on")); b.classList.add("on"); draw(); }));
+    draw(); window.addEventListener("resize", () => el.isConnected && draw());
+  };
+
+  /* ---------- L9 · stretch and band combination lab ---------- */
+  window.EXTRA_SIMS["rs-stretch"] = async (el) => {
+    const S = await loadScene();
+    const { cv, ctx, out, q } = shell(el, "ការបំពាញកម្រិតពណ៌ (Contrast Stretch)",
+      `<label>ក្រុមរលក (R-G-B) <select class="st-c"><option value="true" selected>B4-B3-B2 (ពិត)</option><option value="false">B8-B4-B3 (សន្មត NIR)</option><option value="swir">B12-B8-B4 (SWIR)</option></select></label>
+       <label>វិធី stretch <select class="st-m"><option value="none">គ្មាន (DN ឆៅ)</option><option value="minmax" selected>Min-Max</option><option value="pct">Cumulative ២–៩៨%</option><option value="std">គម្លាតគំរូ (± ២σ)</option></select></label>`);
+    const W = 640, H = 340;
+    const combos = { true: [2, 1, 0], false: [3, 2, 1], swir: [5, 3, 2] };
+    const draw = () => {
+      fit(cv, ctx, W, H); const cKey = q(".st-c").value, mKey = q(".st-m").value, bands = combos[cKey];
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+      const n = S.n, lo = [], hi = [];
+      bands.forEach((b) => { const v = Array.from(S.band[b]).map((x) => x * S.scale).sort((a, c) => a - c);
+        if (mKey === "none") { lo.push(0); hi.push(0.6); }
+        else if (mKey === "minmax") { lo.push(v[0]); hi.push(v[v.length - 1]); }
+        else if (mKey === "pct") { lo.push(v[Math.floor(v.length * 0.02)]); hi.push(v[Math.floor(v.length * 0.98)]); }
+        else { const m = v.reduce((a, c) => a + c, 0) / v.length, sd = Math.sqrt(v.reduce((a, c) => a + (c - m) ** 2, 0) / v.length);
+          lo.push(Math.max(0, m - 2 * sd)); hi.push(m + 2 * sd); } });
+      const img = ctx.createImageData(n, n);
+      for (let i = 0; i < n * n; i++) { const o = i * 4;
+        bands.forEach((b, k) => { const v = refl(S, b, i); img.data[o + k] = clamp(((v - lo[k]) / (hi[k] - lo[k])) * 255, 0, 255); });
+        img.data[o + 3] = 255; }
+      putScaled(ctx, img, 14, 18, 290);
+      // histogram of band 0 (first of the three) before/after
+      const hx = 330, hy = 40, hw = 296, hh = 130, bins = 40;
+      const raw = Array.from(S.band[bands[0]]).map((x) => x * S.scale);
+      const cnt = new Array(bins).fill(0); raw.forEach((v) => cnt[clamp(Math.floor((v / 0.6) * bins), 0, bins - 1)]++);
+      const cmax = Math.max(...cnt);
+      ctx.strokeStyle = "#999"; ctx.strokeRect(hx, hy, hw, hh);
+      cnt.forEach((c, i) => { const h2 = (c / cmax) * (hh - 6); ctx.fillStyle = "#90a4ae"; ctx.fillRect(hx + (hw * i) / bins + 1, hy + hh - h2, hw / bins - 2, h2); });
+      const loX = hx + (lo[0] / 0.6) * hw, hiX = hx + (hi[0] / 0.6) * hw;
+      ctx.strokeStyle = "#c62828"; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(loX, hy); ctx.lineTo(loX, hy + hh); ctx.moveTo(hiX, hy); ctx.lineTo(hiX, hy + hh); ctx.stroke();
+      ctx.font = `11px ${font()}`; ctx.fillStyle = "#555"; ctx.fillText("អ៊ីស្តូក្រាមក្រុមរលកទី១ · បន្ទាត់ក្រហម = ដែន stretch", hx, hy - 8);
+      ctx.fillText("០", hx, hy + hh + 14); ctx.fillText("០,៦", hx + hw - 14, hy + hh + 14);
+      out.innerHTML = mKey === "none" ? "គ្មាន stretch៖ តម្លៃពិតទាំងអស់ចង្អៀតនៅផ្នែកតូចមួយនៃជួរ ០ ដល់ ២៥៥ ដូច្នេះរូបភាពមើលទៅស្ទើរខ្មៅ។" :
+        `ដែន stretch៖ <b>${fmtN(lo[0] * 100, 1)}%</b> ដល់ <b>${fmtN(hi[0] * 100, 1)}%</b> ត្រូវបានទាញឲ្យសមនឹង ០–២៥៥។<br><span class="sim-hint">Min-Max រសើបនឹងតម្លៃខ្លាំង (ចំណុចភ្លឺ ឬងងឹតតែមួយអាចទាញដែនទាំងមូល)។ Cumulative % ធន់នឹងតម្លៃខ្លាំងជាង។ ការ stretch ប្ដូរតែការបង្ហាញ មិនប្ដូរទិន្នន័យទេ។</span>`;
+    };
+    el.querySelectorAll("select").forEach((x) => x.addEventListener("change", draw)); draw();
+    window.addEventListener("resize", () => el.isConnected && draw());
+  };
+
+  /* ---------- L9 · pan-sharpening concept ---------- */
+  window.EXTRA_SIMS["rs-pansharpen"] = async (el) => {
+    const S = await loadScene();
+    const { cv, ctx, out, q } = shell(el, "គោលការណ៍នៃ Pan-sharpening",
+      `<label><input type="checkbox" class="ps-s" checked> បង្ហាញកំណែបុនចម</label>`);
+    const W = 640, H = 300;
+    const draw = () => {
+      fit(cv, ctx, W, H); const sharp = q(".ps-s").checked;
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+      const coarse = composite(S, [2, 1, 0], 40, true);          // 4x coarser colour
+      putScaled(ctx, coarse, 14, 18, 190);
+      ctx.font = `11px ${font()}`; ctx.fillStyle = "#333"; ctx.fillText("ក្រុមរលកពណ៌ (គំរូ ៤០ ម)", 14, 224);
+      // simulate a panchromatic (grayscale, fine detail) band
+      const n = S.n, pan = new Float32Array(n * n);
+      for (let i = 0; i < n * n; i++) pan[i] = (refl(S, 0, i) + refl(S, 1, i) + refl(S, 2, i)) / 3;
+      const panImg = ctx.createImageData(n, n);
+      for (let i = 0; i < n * n; i++) { const v = clamp(pan[i] * 255 * 2.2, 0, 255); const o = i * 4; panImg.data[o] = v; panImg.data[o + 1] = v; panImg.data[o + 2] = v; panImg.data[o + 3] = 255; }
+      putScaled(ctx, panImg, 222, 18, 190); ctx.fillText("Panchromatic (គំរូ ១០ ម)", 222, 224);
+      if (sharp) {
+        const outImg = ctx.createImageData(n, n);
+        const coarseAt = (i) => { const y = Math.floor(i / n), x = i % n, cs = 40, cx2 = Math.floor((x / n) * cs), cy2 = Math.floor((y / n) * cs);
+          const ci = cy2 * cs + cx2, o2 = ci * 4; return [coarse.data[o2] / 255, coarse.data[o2 + 1] / 255, coarse.data[o2 + 2] / 255]; };
+        for (let i = 0; i < n * n; i++) { const [r, g, b] = coarseAt(i), o = i * 4, ratio = pan[i] / Math.max(0.02, (r + g + b) / 3 / 2.2);
+          outImg.data[o] = clamp(r * 2.2 * ratio * 255, 0, 255); outImg.data[o + 1] = clamp(g * 2.2 * ratio * 255, 0, 255); outImg.data[o + 2] = clamp(b * 2.2 * ratio * 255, 0, 255); outImg.data[o + 3] = 255; }
+        putScaled(ctx, outImg, 430, 18, 190); ctx.fillText("លទ្ធផលបុនចម (ពណ៌ + លម្អិត)", 430, 224);
+      }
+      out.innerHTML = sharp
+        ? "Pan-sharpening បញ្ចូលលម្អិតលំហពី panchromatic ចូលទៅក្នុងពណ៌ពីក្រុមរលកគំរូធំ។ លទ្ធផលមើលទៅមានលម្អិត ប៉ុន្តែ <b>ព័ត៌មានពណ៌ពិតនៅតែមកពីក្រុមរលកគំរូធំ</b> មិនមែនកើនឡើងទេ។"
+        : "សង្កេតភាពខុសគ្នារវាងក្រុមរលកពណ៌ (ព័ត៌មានច្រើន ប៉ុន្តែព្រិល) និង panchromatic (លម្អិតច្រើន ប៉ុន្តែគ្មានពណ៌)។ ធីកខាងលើ ដើម្បីមើលការបញ្ចូលគ្នា។";
+    };
+    q(".ps-s").addEventListener("change", draw); draw();
+    window.addEventListener("resize", () => el.isConnected && draw());
+  };
+
+  /* ---------- L10 · spectral index explorer ---------- */
+  const INDEX_DEFS = {
+    ndvi: { name: "NDVI", formula: (v) => (v.nir - v.red) / (v.nir + v.red), bands: ["nir", "red"], range: [-1, 1], desc: "សន្ទស្សន៍ភាពខៀវបៃតង (Normalized Difference Vegetation Index)" },
+    evi: { name: "EVI", formula: (v) => 2.5 * ((v.nir - v.red) / (v.nir + 6 * v.red - 7.5 * v.blue + 1)), bands: ["nir", "red", "blue"], range: [-1, 1], desc: "សន្ទស្សន៍រុក្ខជាតិកែលម្អ (កាត់បន្ថយឥទ្ធិពលដី និងបរិយាកាស)" },
+    ndwi: { name: "NDWI", formula: (v) => (v.green - v.nir) / (v.green + v.nir), bands: ["green", "nir"], range: [-1, 1], desc: "សន្ទស្សន៍ទឹក (McFeeters)" },
+    mndwi: { name: "MNDWI", formula: (v) => (v.green - v.swir1) / (v.green + v.swir1), bands: ["green", "swir1"], range: [-1, 1], desc: "សន្ទស្សន៍ទឹកកែលម្អ (បែងចែកទឹក និងតំបន់សាងសង់បានប្រសើរជាង)" },
+    ndbi: { name: "NDBI", formula: (v) => (v.swir1 - v.nir) / (v.swir1 + v.nir), bands: ["swir1", "nir"], range: [-1, 1], desc: "សន្ទស្សន៍តំបន់សាងសង់" },
+    bsi: { name: "BSI", formula: (v) => ((v.swir1 + v.red) - (v.nir + v.blue)) / ((v.swir1 + v.red) + (v.nir + v.blue)), bands: ["swir1", "red", "nir", "blue"], range: [-1, 1], desc: "សន្ទស្សន៍ដីទទេ (Bare Soil Index)" },
+  };
+  const bandIdxMap = { blue: 0, green: 1, red: 2, nir: 3, swir1: 4, swir2: 5 };
+  window.EXTRA_SIMS["rs-index"] = async (el) => {
+    const S = await loadScene();
+    const { cv, ctx, out, q } = shell(el, "ស្វែងយល់សន្ទស្សន៍ស្ពិចត្រាល់",
+      `<label>សន្ទស្សន៍ <select class="ix-i"><option value="ndvi" selected>NDVI</option><option value="evi">EVI</option><option value="ndwi">NDWI</option><option value="mndwi">MNDWI</option><option value="ndbi">NDBI</option><option value="bsi">BSI</option></select></label>
+       <label>ឈុតពណ៌ <select class="ix-p"><option value="rdylgn" selected>ក្រហម–លឿង–បៃតង</option><option value="gray">ប្រផេះ</option><option value="bwr">ខៀវ–ស–ក្រហម</option></select></label>`);
+    const W = 640, H = 350;
+    const rampFor = (t, pal) => { t = clamp(t, 0, 1);
+      if (pal === "gray") { const v = Math.round(t * 255); return `rgb(${v},${v},${v})`; }
+      if (pal === "bwr") return ramp(t, [[33, 102, 172], [247, 247, 247], [178, 24, 43]]);
+      return ramp(t, [[165, 0, 38], [255, 255, 191], [26, 152, 80]]); };
+    const draw = () => {
+      fit(cv, ctx, W, H); const key = q(".ix-i").value, pal = q(".ix-p").value, def = INDEX_DEFS[key];
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+      const n = S.n, vals = new Float32Array(n * n);
+      for (let i = 0; i < n * n; i++) { const v = { blue: refl(S, 0, i), green: refl(S, 1, i), red: refl(S, 2, i), nir: refl(S, 3, i), swir1: refl(S, 4, i), swir2: refl(S, 5, i) };
+        vals[i] = def.formula(v); }
+      const img = ctx.createImageData(n, n), [lo, hi] = def.range;
+      for (let i = 0; i < n * n; i++) { const t = (vals[i] - lo) / (hi - lo), c = rampFor(t, pal).match(/\d+/g).map(Number), o = i * 4;
+        img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2]; img.data[o + 3] = 255; }
+      putScaled(ctx, img, 14, 18, 300);
+      // legend
+      const lx = 330, ly = 40, lw = 220, lh = 16;
+      for (let i = 0; i < lw; i++) { ctx.fillStyle = rampFor(i / lw, pal); ctx.fillRect(lx + i, ly, 1, lh); }
+      ctx.strokeStyle = "#999"; ctx.strokeRect(lx, ly, lw, lh);
+      ctx.font = `11px ${font()}`; ctx.fillStyle = "#333"; ctx.fillText(fmtN(lo, 1), lx - 4, ly + lh + 14); ctx.fillText(fmtN(hi, 1), lx + lw - 10, ly + lh + 14);
+      ctx.font = `13px ${font()}`; ctx.fillText(def.name, lx, ly - 10);
+      // per-class mean
+      const sums = {}, counts = {};
+      for (let i = 0; i < n * n; i++) { const c = S.cls[i]; sums[c] = (sums[c] || 0) + vals[i]; counts[c] = (counts[c] || 0) + 1; }
+      let ly2 = ly + 46; ctx.font = `12px ${font()}`;
+      S.classes.forEach((name, c) => { const m = (sums[c] || 0) / (counts[c] || 1);
+        ctx.fillStyle = "#333"; ctx.fillText(`${name}៖`, lx, ly2); ctx.fillStyle = "#555"; ctx.fillText(fmtN(m, 2), lx + 110, ly2); ly2 += 20; });
+      out.innerHTML = `<b>${def.name}</b> · ${def.desc} · ក្រុមរលកប្រើ៖ ${def.bands.map((b) => S.names[bandIdxMap[b]]).join(" · ")}` +
+        `<br><span class="sim-hint">ជួរតម្លៃដែលបង្ហាញ៖ ${fmtN(lo, 1)} ដល់ ${fmtN(hi, 1)}។ សូមប្រៀបធៀបតម្លៃមធ្យមតាមថ្នាក់ខាងលើ ដើម្បីមើលថាតើសន្ទស្សន៍នេះបែងចែកថ្នាក់ណាបានល្អ។</span>`;
+    };
+    el.querySelectorAll("select").forEach((x) => x.addEventListener("change", draw)); draw();
+    window.addEventListener("resize", () => el.isConnected && draw());
+  };
+
+  /* ---------- L10 · NDVI formula builder ---------- */
+  window.EXTRA_SIMS["rs-ndvi-calc"] = (el) => {
+    const { cv, ctx, out, q } = shell(el, "គណនា NDVI ដោយខ្លួនឯង",
+      `<label>NIR (%) <b class="nc-nv"></b> <input type="range" class="nc-n" min="0" max="60" value="40"></label>
+       <label>ក្រហម (%) <b class="nc-rv"></b> <input type="range" class="nc-r" min="0" max="60" value="6"></label>`);
+    const W = 640, H = 220;
+    const draw = () => {
+      fit(cv, ctx, W, H); const nir = +q(".nc-n").value / 100, red = +q(".nc-r").value / 100;
+      q(".nc-nv").textContent = kh(+q(".nc-n").value); q(".nc-rv").textContent = kh(+q(".nc-r").value);
+      const ndvi = (nir - red) / (nir + red || 1e-9);
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+      const x0 = 20, x1 = 620, y = 110;
+      ctx.strokeStyle = "#999"; ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
+      [-1, -0.5, 0, 0.5, 1].forEach((t) => { const x = x0 + ((t + 1) / 2) * (x1 - x0); ctx.strokeStyle = "#ddd"; ctx.beginPath(); ctx.moveTo(x, y - 6); ctx.lineTo(x, y + 6); ctx.stroke();
+        ctx.fillStyle = "#666"; ctx.font = `11px ${font()}`; ctx.fillText(fmtN(t, 1), x - 8, y + 22); });
+      const px = x0 + ((ndvi + 1) / 2) * (x1 - x0);
+      ctx.beginPath(); ctx.arc(px, y, 8, 0, 7); ctx.fillStyle = ndvi > 0.4 ? "#2e7d32" : ndvi > 0.1 ? "#c0ca33" : ndvi > -0.1 ? "#a1887f" : "#1565c0"; ctx.fill(); ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke();
+      ctx.font = `20px ${font()}`; ctx.fillStyle = "#333"; ctx.fillText(`NDVI = (${fmtN(nir * 100)}−${fmtN(red * 100)}) ÷ (${fmtN(nir * 100)}+${fmtN(red * 100)}) = ${fmtN(ndvi, 2)}`, 20, 50);
+      const label = ndvi > 0.6 ? "ព្រៃឈើ ឬដំណាំក្រាស់ មានសុខភាពល្អ" : ndvi > 0.3 ? "រុក្ខជាតិមធ្យម ឬដំណាំកំពុងលូតលាស់" : ndvi > 0.1 ? "រុក្ខជាតិស្ដើង ឬដីចម្រុះ" : ndvi > -0.1 ? "ដីទទេ ថ្ម ឬតំបន់សាងសង់" : "ទឹក ព្រិល ឬពពក";
+      out.innerHTML = `ការបកស្រាយប្រហាក់ប្រហែល៖ <b>${label}</b><br><span class="sim-hint">សាកល្បងកំណត់ NIR = ១% និងក្រហម = ១% (ទឹក)៖ NDVI ក្លាយអវិជ្ជមាន។ កំណត់ទាំងពីរស្មើគ្នា៖ NDVI = ០។</span>`;
     };
     el.querySelectorAll("input").forEach((x) => x.addEventListener("input", draw)); draw();
     window.addEventListener("resize", () => el.isConnected && draw());
