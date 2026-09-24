@@ -95,7 +95,7 @@
       const NOTE = { true: "ពណ៌ពិតប្រើរលកដែលភ្នែកមនុស្សឃើញ (ក្រហម បៃតង ខៀវ)។ វាមើលទៅធម្មជាតិ ប៉ុន្តែពិបាកបែងចែករុក្ខជាតិ។",
         false: "ពណ៌សន្មតបញ្ចូលអ៊ីនហ្វ្រាក្រហមជិត (B8) ជាពណ៌ក្រហម។ រុក្ខជាតិដែលមានសុខភាពល្អឆ្លុះអ៊ីនហ្វ្រាក្រហមខ្លាំង ដូច្នេះវាក្លាយជាក្រហមភ្លឺ។",
         swir: "SWIR (B12) ជួយបែងចែកសំណើម ដី និងតំបន់សាងសង់ ព្រមទាំងអាចមើលឆ្លងផ្សែងបានខ្លះ។" }[c];
-      out.innerHTML = `${NOTE}<br><span class="sim-hint">ទិដ្ឋភាពគំរូ ២០០ × ២០០ ក្រឡា ក្រឡា ១០ ម (ប្រហែល ២ × ២ គម) · តម្លៃឆ្លុះបញ្ចាំងជាតម្លៃសំយោគតាមបែប Sentinel-2។</span>`;
+      out.innerHTML = `${NOTE}<br><span class="sim-hint">ទិដ្ឋភាពគំរូ ២០០ × ២០០ ក្រឡា ក្រឡា ១០ ម (ប្រហែល ២ × ២ គម) · តម្លៃចាំងផ្លាតជាតម្លៃសំយោគតាមបែប Sentinel-2។</span>`;
     };
     el.querySelectorAll(".rv-c button").forEach((b) => (b.onclick = () => { el.querySelectorAll(".rv-c button").forEach((x) => x.classList.remove("on")); b.classList.add("on"); draw(); }));
     q(".rv-l").addEventListener("change", draw); draw();
@@ -203,15 +203,15 @@
     const draw = () => {
       fit(cv, ctx, W, H); const t = el.querySelector(".sc-t .on").dataset.t;
       ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
-      const X0 = 60, X1 = 340, Y0 = 40, Y1 = 220;
+      const X0 = 60, X1 = 340, Y0 = 56, Y1 = 220, barTop = Y0 + 24;
       const bands = [["ខៀវ", 0.47, "#1e88e5"], ["បៃតង", 0.56, "#43a047"], ["ក្រហម", 0.66, "#e53935"], ["NIR", 0.84, "#6d4c41"], ["SWIR", 1.6, "#455a64"]];
       const rel = (um) => (t === "rayleigh" ? Math.pow(0.47 / um, 4) : t === "mie" ? Math.pow(0.47 / um, 1.3) : 1);
       const mx = Math.max(...bands.map(([, u]) => rel(u)));
       ctx.strokeStyle = "#555"; ctx.beginPath(); ctx.moveTo(X0, Y1); ctx.lineTo(X1, Y1); ctx.stroke();
-      bands.forEach(([n, um, col], i) => { const h = (rel(um) / mx) * (Y1 - Y0), x = X0 + 10 + i * 54;
+      ctx.font = `12px ${font()}`; ctx.fillStyle = "#333"; ctx.fillText("ការខ្ចាត់ខ្ចាយធៀប (ខៀវ = ១០០%)", X0, 22);
+      bands.forEach(([n, um, col], i) => { const h = (rel(um) / mx) * (Y1 - barTop), x = X0 + 10 + i * 54;
         ctx.fillStyle = col; ctx.fillRect(x, Y1 - h, 34, h);
         ctx.fillStyle = "#333"; ctx.font = `11px ${font()}`; ctx.fillText(n, x - 2, Y1 + 16); ctx.fillText(fmtN(rel(um) / mx * 100) + "%", x - 2, Y1 - h - 6); });
-      ctx.fillText("ការខ្ចាត់ខ្ចាយធៀប (ខៀវ = ១០០%)", X0, Y0 - 12);
       // picture
       const cx = 480, cy = 130;
       ctx.fillStyle = "#e3f2fd"; ctx.fillRect(390, 30, 230, 200);
@@ -244,7 +244,7 @@
   };
   window.EXTRA_SIMS["rs-signature"] = (el) => {
     const names = Object.keys(SIG);
-    const { cv, ctx, out, q } = shell(el, "ហត្ថលេខាស្ពិចត្រាល់",
+    const { cv, ctx, out, q } = shell(el, "សញ្ញាណស្ពិចត្រាល់",
       `<span class="sim-controls-inline">${names.map((n, i) => `<label><input type="checkbox" class="sg" value="${n}" ${i < 3 ? "checked" : ""}> ${n}</label>`).join(" ")}</span>
        <label><input type="checkbox" class="sg-b" checked> ក្រុមរលក Sentinel-2</label>`);
     const W = 640, H = 340, X0 = 54, X1 = 470, Y0 = 30, Y1 = 250;
@@ -261,7 +261,7 @@
       ctx.font = `11px ${font()}`; ctx.fillStyle = "#555";
       [0, 0.1, 0.2, 0.3, 0.4].forEach((r) => { ctx.fillText(fmtN(r * 100), 22, Y(r) + 4); ctx.strokeStyle = "#f0f0f0"; ctx.beginPath(); ctx.moveTo(X0, Y(r)); ctx.lineTo(X1, Y(r)); ctx.stroke(); });
       [0.5, 1.0, 1.5, 2.0].forEach((u) => ctx.fillText(String(u).replace(".", ","), X(u) - 8, Y1 + 16));
-      ctx.fillText("ការឆ្លុះបញ្ចាំង %", 16, Y0 - 10); ctx.fillText("រលក µm", X1 - 44, Y1 + 34);
+      ctx.fillText("ការចាំងផ្លាត %", 16, Y0 - 10); ctx.fillText("រលក µm", X1 - 44, Y1 + 34);
       sel.forEach((n) => { const s2 = SIG[n]; ctx.beginPath();
         s2.v.forEach(([um, r], i) => (i ? ctx.lineTo(X(um), Y(r)) : ctx.moveTo(X(um), Y(r))));
         ctx.strokeStyle = s2.col; ctx.lineWidth = 2.2; ctx.stroke();
@@ -278,7 +278,7 @@
           const best = [["B4", d[0]], ["B8", d[1]], ["B11", d[2]]].sort((a, b) => b[1] - a[1])[0];
           pairs.push(`${sel[i]} ↔ ${sel[j]}៖ បែងចែកបានល្អបំផុតក្នុង <b>${best[0]}</b> (ភាពខុសគ្នា ${fmtN(best[1] * 100, 1)} ពិន្ទុ%)`);
         }
-        out.innerHTML = pairs.slice(0, 4).join("<br>") + `<br><span class="sim-hint">តម្លៃជាតម្លៃធម្មតា (typical) សម្រាប់បង្រៀន។ ហត្ថលេខាពិតប្រែប្រួលតាមសំណើម រដូវ និងមុំមើល។</span>`;
+        out.innerHTML = pairs.slice(0, 4).join("<br>") + `<br><span class="sim-hint">តម្លៃជាតម្លៃធម្មតា (typical) សម្រាប់បង្រៀន។ សញ្ញាណពិតប្រែប្រួលតាមសំណើម រដូវ និងមុំមើល។</span>`;
       } else out.innerHTML = `ជ្រើសយ៉ាងតិចពីរប្រភេទ ដើម្បីប្រៀបធៀបភាពបែងចែក។`;
     };
     el.querySelectorAll("input").forEach((c) => c.addEventListener("change", draw)); draw();
@@ -288,7 +288,7 @@
   /* pixel probe on the sample scene */
   window.EXTRA_SIMS["rs-probe"] = async (el) => {
     const S = await loadScene();
-    const { cv, ctx, out } = shell(el, "ចុចលើរូបភាព ដើម្បីអានហត្ថលេខារបស់ក្រឡា", `<span class="sim-hint">ចុច ឬអូសលើរូបភាពខាងឆ្វេង</span>`);
+    const { cv, ctx, out } = shell(el, "ចុចលើរូបភាព ដើម្បីអានសញ្ញាណរបស់ក្រឡា", `<span class="sim-hint">ចុច ឬអូសលើរូបភាពខាងឆ្វេង</span>`);
     const W = 640, H = 330, MS = 290, ox = 12, oy = 20;
     let pick = { x: Math.floor(S.n * 0.3), y: Math.floor(S.n * 0.3) };
     const um = [0.49, 0.56, 0.665, 0.842, 1.61, 2.19];
@@ -439,7 +439,7 @@
   /* ---------- L7 · DN to reflectance, haze and correction ---------- */
   window.EXTRA_SIMS["rs-correction"] = async (el) => {
     const S = await loadScene();
-    const { cv, ctx, out, q } = shell(el, "ពី DN ទៅការឆ្លុះបញ្ចាំងផ្ទៃដី",
+    const { cv, ctx, out, q } = shell(el, "ពី DN ទៅការចាំងផ្លាតផ្ទៃដី",
       `<label>អ័ព្ទ (ពន្លឺផ្លូវ) <b class="co-hv"></b> <input type="range" class="co-h" min="0" max="60" value="25"></label>
        <label>មុំព្រះអាទិត្យពីកំពូល <b class="co-zv"></b> <input type="range" class="co-z" min="10" max="60" value="30"></label>
        <label><input type="checkbox" class="co-c"> អនុវត្តការកែតម្រូវ (DOS)</label>`);
