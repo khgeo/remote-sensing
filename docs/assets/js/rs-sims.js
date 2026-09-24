@@ -1131,4 +1131,48 @@
     q(".sf-t").addEventListener("input", draw); draw();
     window.addEventListener("resize", () => el.isConnected && draw());
   };
+
+  /* ---------- L14 · REAL change detection: Sihanoukville 2015 vs 2021 ---------- */
+  let shvCache = null;
+  const loadSHV = async () => {
+    if (shvCache) return shvCache;
+    const j = await (await fetch(new URL("../../assets/data/shv_change.json", location.href))).json();
+    const bin = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+    const n = j.w * j.h, nb = j.bands.length;
+    const raw15 = bin(j.y2015), raw21 = bin(j.y2021);
+    const b15 = [], b21 = [];
+    for (let k = 0; k < nb; k++) { b15.push(raw15.subarray(k * n, (k + 1) * n)); b21.push(raw21.subarray(k * n, (k + 1) * n)); }
+    shvCache = { w: j.w, h: j.h, bands: j.bands, b15, b21 };
+    return shvCache;
+  };
+  window.EXTRA_SIMS["rs-shv-change"] = async (el) => {
+    const D = await loadSHV();
+    const { cv, ctx, out, q } = shell(el, "ករណីសិក្សាពិត៖ ការផ្លាស់ប្ដូរនៅព្រះសីហនុ ២០១៥ ធៀបនឹង ២០២១",
+      `<label>កម្រិតកំណត់នៃការផ្លាស់ប្ដូរ <b class="sh-tv"></b> <input type="range" class="sh-t" min="10" max="90" value="35"></label>`);
+    const W = 640, H = 340, w = D.w, h = D.h;
+    // bands: B2 B3 B4 B5 B6 B7 -> indices 0..5
+    const at = (arr, b, i) => arr[b][i] / 255;
+    const draw = () => {
+      fit(cv, ctx, W, H); const thr = +q(".sh-t").value / 100; q(".sh-tv").textContent = fmtN(+q(".sh-t").value);
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+      const mw = 190;
+      const mk = (arr) => { const img = ctx.createImageData(w, h);
+        for (let i = 0; i < w * h; i++) { const o = i * 4;
+          img.data[o] = at(arr, 2, i) * 255 * 1.15; img.data[o + 1] = at(arr, 1, i) * 255 * 1.15; img.data[o + 2] = at(arr, 0, i) * 255 * 1.15; img.data[o + 3] = 255; }
+        return img; };
+      putScaled(ctx, mk(D.b15), 6, 18, mw); ctx.font = `11px ${font()}`; ctx.fillStyle = "#333"; ctx.fillText("ឆ្នាំ ២០១៥", 6, mw * (h / w) + 32);
+      putScaled(ctx, mk(D.b21), 6 + mw + 10, 18, mw); ctx.fillText("ឆ្នាំ ២០២១", 6 + mw + 10, mw * (h / w) + 32);
+      // change vector magnitude across the 6 bands
+      const chImg = ctx.createImageData(w, h); let changedPx = 0;
+      for (let i = 0; i < w * h; i++) { let sq = 0; for (let b = 0; b < 6; b++) { const d = at(D.b21, b, i) - at(D.b15, b, i); sq += d * d; }
+        const mag = Math.sqrt(sq / 6); const isCh = mag > thr; if (isCh) changedPx++;
+        const o = i * 4; if (isCh) { chImg.data[o] = 220; chImg.data[o + 1] = 30; chImg.data[o + 2] = 30; } else { const g = at(D.b15, 2, i) * 200 + 30; chImg.data[o] = g; chImg.data[o + 1] = g; chImg.data[o + 2] = g; }
+        chImg.data[o + 3] = 255; }
+      putScaled(ctx, chImg, 6 + 2 * (mw + 10), 18, mw); ctx.fillText("ការផ្លាស់ប្ដូរ (ក្រហម)", 6 + 2 * (mw + 10), mw * (h / w) + 32);
+      const pctCh = (changedPx / (w * h)) * 100;
+      out.innerHTML = `ទិន្នន័យ Sentinel-2 ពិតលើក្រុងព្រះសីហនុ (Sihanoukville) ដែលកំពុងអភិវឌ្ឍយ៉ាងលឿន។ ផ្ទៃដែលរកឃើញថាផ្លាស់ប្ដូរ ≈ <b>${fmtN(pctCh)}%</b> នៃទិដ្ឋភាព<br><span class="sim-hint">វិធីនេះហៅថា <b>Change Vector Analysis (CVA)</b>៖ គណនាចម្ងាយស្ពិចត្រាល់រវាងឆ្នាំទាំងពីរ ឆ្លងកាត់ក្រុមរលកច្រើន ក្នុងពេលតែមួយ ជំនួសឲ្យប្រើសន្ទស្សន៍តែមួយ។ តំបន់ក្រហមភ្លឺបំផុតត្រូវនឹងទីតាំងសំណង់ថ្មី និងការជម្រុះដីសម្រាប់ការអភិវឌ្ឍតាមឆ្នេរ។ បង្កើនកម្រិតកំណត់ ដើម្បីមើលតែការផ្លាស់ប្ដូរខ្លាំងបំផុត។</span>`;
+    };
+    q(".sh-t").addEventListener("input", draw); draw();
+    window.addEventListener("resize", () => el.isConnected && draw());
+  };
 })();
