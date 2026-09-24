@@ -69,7 +69,7 @@
     const S = await loadScene();
     const { cv, ctx, out, q } = shell(el, "តើផ្កាយរណបឃើញអ្វី?",
       `<span class="sim-seg rv-c"><button type="button" data-c="true" class="on">ពណ៌ពិត (B4-B3-B2)</button><button type="button" data-c="false">ពណ៌សន្មត (B8-B4-B3)</button><button type="button" data-c="swir">SWIR (B12-B8-B4)</button></span>
-       <label><input type="checkbox" class="rv-l"> បង្ហាញស្រទាប់ក្រប់ដី</label>`);
+       <label><input type="checkbox" class="rv-l"> បង្ហាញស្រទាប់គម្របដី</label>`);
     const W = 640, H = 340;
     const draw = () => {
       fit(cv, ctx, W, H); const c = el.querySelector(".rv-c .on").dataset.c, showCls = q(".rv-l").checked;
@@ -310,7 +310,7 @@
       vals.forEach((r, k) => { ctx.beginPath(); ctx.arc(X(um[k]), Y(r), 3, 0, 7); ctx.fillStyle = "#e65100"; ctx.fill();
         ctx.fillStyle = "#666"; ctx.fillText(S.names[k], X(um[k]) - 8, Y1 + 14); });
       const ndvi = (vals[3] - vals[2]) / (vals[3] + vals[2]), ndwi = (vals[1] - vals[3]) / (vals[1] + vals[3]);
-      out.innerHTML = `ក្រឡា (${kh(pick.x)}, ${kh(pick.y)}) · ក្រប់ដីពិត៖ <b>${S.classes[S.cls[i]]}</b><br>` +
+      out.innerHTML = `ក្រឡា (${kh(pick.x)}, ${kh(pick.y)}) · គម្របដីពិត៖ <b>${S.classes[S.cls[i]]}</b><br>` +
         S.names.map((n, k) => `${n} ${fmtN(vals[k] * 100, 1)}%`).join(" · ") +
         `<br>NDVI = <b>${fmtN(ndvi, 2)}</b> · NDWI = <b>${fmtN(ndwi, 2)}</b> <span class="sim-hint">(សន្ទស្សន៍នឹងសិក្សាក្នុងមេរៀនទី១០)</span>`;
     };
@@ -721,6 +721,267 @@
       ctx.font = `20px ${font()}`; ctx.fillStyle = "#333"; ctx.fillText(`NDVI = (${fmtN(nir * 100)}−${fmtN(red * 100)}) ÷ (${fmtN(nir * 100)}+${fmtN(red * 100)}) = ${fmtN(ndvi, 2)}`, 20, 50);
       const label = ndvi > 0.6 ? "ព្រៃឈើ ឬដំណាំក្រាស់ មានសុខភាពល្អ" : ndvi > 0.3 ? "រុក្ខជាតិមធ្យម ឬដំណាំកំពុងលូតលាស់" : ndvi > 0.1 ? "រុក្ខជាតិស្ដើង ឬដីចម្រុះ" : ndvi > -0.1 ? "ដីទទេ ថ្ម ឬតំបន់សាងសង់" : "ទឹក ព្រិល ឬពពក";
       out.innerHTML = `ការបកស្រាយប្រហាក់ប្រហែល៖ <b>${label}</b><br><span class="sim-hint">សាកល្បងកំណត់ NIR = ១% និងក្រហម = ១% (ទឹក)៖ NDVI ក្លាយអវិជ្ជមាន។ កំណត់ទាំងពីរស្មើគ្នា៖ NDVI = ០។</span>`;
+    };
+    el.querySelectorAll("input").forEach((x) => x.addEventListener("input", draw)); draw();
+    window.addEventListener("resize", () => el.isConnected && draw());
+  };
+
+  /* ---------- L11 · unsupervised classification (k-means) ---------- */
+  window.EXTRA_SIMS["rs-kmeans"] = async (el) => {
+    const S = await loadScene();
+    const { cv, ctx, out, q } = shell(el, "ការចាត់ថ្នាក់គ្មានការណែនាំ (K-means)",
+      `<label>ចំនួនចង្កោម (k) <b class="km-kv"></b> <input type="range" class="km-k" min="2" max="8" value="5"></label>
+       <label>ជំហានធ្វើម្ដងទៀត <b class="km-iv"></b> <input type="range" class="km-i" min="0" max="12" value="0"></label>
+       <button type="button" class="km-run">ដំណើរការជំហានបន្ទាប់</button>`);
+    const W = 640, H = 340;
+    const size = 60, n2 = size * size;
+    // downsample scene to a working grid of 6-band vectors
+    const step = S.n / size, vecs = [];
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+      const sy = Math.floor(y * step), sx = Math.floor(x * step), i = sy * S.n + sx;
+      vecs.push([refl(S, 0, i), refl(S, 1, i), refl(S, 2, i), refl(S, 3, i), refl(S, 4, i), refl(S, 5, i)]);
+    }
+    const clsDown = new Uint8Array(n2);
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) clsDown[y * size + x] = S.cls[Math.floor(y * step) * S.n + Math.floor(x * step)];
+    let centers = [], labels = new Int32Array(n2).fill(-1), seed = 7, iter = 0;
+    const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
+    const initCenters = (k) => { seed = 7; centers = []; for (let c = 0; c < k; c++) centers.push(vecs[Math.floor(rnd() * n2)].slice()); labels.fill(-1); iter = 0; };
+    const KCOL = ["#e53935", "#1e88e5", "#43a047", "#fb8c00", "#8e24aa", "#00897b", "#6d4c41", "#546e7a"];
+    const step1 = () => { // assign
+      for (let i = 0; i < n2; i++) { let best = 0, bd = Infinity;
+        centers.forEach((c, ci) => { let d = 0; for (let b = 0; b < 6; b++) d += (vecs[i][b] - c[b]) ** 2; if (d < bd) { bd = d; best = ci; } });
+        labels[i] = best; }
+      // update
+      const sums = centers.map(() => [0, 0, 0, 0, 0, 0]), counts = centers.map(() => 0);
+      for (let i = 0; i < n2; i++) { const c = labels[i]; counts[c]++; for (let b = 0; b < 6; b++) sums[c][b] += vecs[i][b]; }
+      centers = centers.map((c, ci) => (counts[ci] ? sums[ci].map((v) => v / counts[ci]) : c));
+      iter++;
+    };
+    const k0 = 5; initCenters(k0);
+    const draw = () => {
+      fit(cv, ctx, W, H); const k = +q(".km-k").value;
+      q(".km-kv").textContent = kh(k); q(".km-iv").textContent = kh(iter);
+      if (centers.length !== k) initCenters(k);
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+      // left: true colour reference
+      putScaled(ctx, composite(S, [2, 1, 0], S.n, false), 12, 18, 190);
+      ctx.font = `11px ${font()}`; ctx.fillStyle = "#333"; ctx.fillText("ពណ៌ពិត (យោង)", 12, 224);
+      // middle: cluster map
+      const img = ctx.createImageData(size, size);
+      for (let i = 0; i < n2; i++) { const c = labels[i] < 0 ? [200, 200, 200] : hexToRgb(KCOL[labels[i] % KCOL.length]); const o = i * 4;
+        img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2]; img.data[o + 3] = 255; }
+      putScaled(ctx, img, 222, 18, 190); ctx.fillText("ផែនទីចង្កោម (មិនទាន់ដាក់ស្លាក)", 222, 224);
+      // legend
+      ctx.font = `12px ${font()}`;
+      for (let c = 0; c < k; c++) { const y = 60 + c * 22; ctx.fillStyle = KCOL[c % KCOL.length]; ctx.fillRect(432, y, 16, 14);
+        ctx.strokeStyle = "#999"; ctx.strokeRect(432, y, 16, 14); ctx.fillStyle = "#333"; ctx.fillText(`ចង្កោម ${kh(c + 1)}`, 454, y + 12); }
+      // purity: majority true-class per cluster
+      let correct = 0; const majMap = [];
+      for (let c = 0; c < k; c++) { const cnt = {}; for (let i = 0; i < n2; i++) if (labels[i] === c) cnt[clsDown[i]] = (cnt[clsDown[i]] || 0) + 1;
+        const maj = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0]; majMap.push(maj ? +maj[0] : -1);
+        if (maj) correct += maj[1]; }
+      const purity = iter > 0 ? (correct / n2) * 100 : 0;
+      out.innerHTML = iter === 0
+        ? "កណ្ដាលចង្កោមចាប់ផ្ដើមដោយចៃដន្យ។ ចុច «ដំណើរការជំហានបន្ទាប់» ដើម្បីធ្វើការចាត់ថ្នាក់ម្ដងមួយជំហាន (assign → update)។"
+        : `ជំហាន <b>${kh(iter)}</b> · Purity (ភាគរយក្រឡាដែលចង្កោមភាគច្រើនត្រូវនឹងគម្របដីពិត) ≈ <b>${fmtN(purity)}%</b><br><span class="sim-hint">ក្បួនដោះស្រាយមិនស្គាល់ឈ្មោះ «ព្រៃ» ឬ «ទឹក» ទេ វាគ្រាន់តែដាក់ក្រុមតាមភាពស្រដៀងគ្នា។ ការដាក់ស្លាកឈ្មោះថ្នាក់ ត្រូវធ្វើដោយមនុស្សនៅជំហានក្រោយ។</span>`;
+    };
+    const hexToRgb = (h) => [1, 3, 5].map((i) => parseInt(h.substr(i, 2), 16));
+    el.querySelector(".km-run").onclick = () => { step1(); draw(); };
+    q(".km-k").addEventListener("input", () => { initCenters(+q(".km-k").value); draw(); });
+    draw(); window.addEventListener("resize", () => el.isConnected && draw());
+  };
+
+  /* ---------- L11 · elbow method for choosing k ---------- */
+  window.EXTRA_SIMS["rs-elbow"] = async (el) => {
+    const S = await loadScene();
+    const { cv, ctx, out } = shell(el, "ជ្រើសចំនួនចង្កោម៖ វិធីកែងដៃ (Elbow method)", "");
+    const W = 640, H = 300;
+    const size = 45, n2 = size * size, step = S.n / size, vecs = [];
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) { const sy = Math.floor(y * step), sx = Math.floor(x * step), i = sy * S.n + sx;
+      vecs.push([refl(S, 0, i), refl(S, 1, i), refl(S, 2, i), refl(S, 3, i), refl(S, 4, i), refl(S, 5, i)]); }
+    const wcss = (k) => { let seed = 3; const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
+      let centers = []; for (let c = 0; c < k; c++) centers.push(vecs[Math.floor(rnd() * n2)].slice());
+      let labels = new Int32Array(n2);
+      for (let it = 0; it < 8; it++) { for (let i = 0; i < n2; i++) { let best = 0, bd = Infinity;
+          centers.forEach((c, ci) => { let d = 0; for (let b = 0; b < 6; b++) d += (vecs[i][b] - c[b]) ** 2; if (d < bd) { bd = d; best = ci; } }); labels[i] = best; }
+        const sums = centers.map(() => [0, 0, 0, 0, 0, 0]), counts = centers.map(() => 0);
+        for (let i = 0; i < n2; i++) { const c = labels[i]; counts[c]++; for (let b = 0; b < 6; b++) sums[c][b] += vecs[i][b]; }
+        centers = centers.map((c, ci) => (counts[ci] ? sums[ci].map((v) => v / counts[ci]) : c)); }
+      let sse = 0; for (let i = 0; i < n2; i++) { let d = 0; for (let b = 0; b < 6; b++) d += (vecs[i][b] - centers[labels[i]][b]) ** 2; sse += d; }
+      return sse; };
+    const draw = () => {
+      fit(cv, ctx, W, H); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+      const ks = [2, 3, 4, 5, 6, 7, 8, 9, 10], vals = ks.map(wcss), mx = Math.max(...vals);
+      const X0 = 60, X1 = 600, Y0 = 30, Y1 = 230;
+      ctx.strokeStyle = "#555"; ctx.beginPath(); ctx.moveTo(X0, Y1); ctx.lineTo(X1, Y1); ctx.moveTo(X0, Y0); ctx.lineTo(X0, Y1); ctx.stroke();
+      ctx.font = `11px ${font()}`; ctx.fillStyle = "#555";
+      ks.forEach((k, i) => { const x = X0 + (i / (ks.length - 1)) * (X1 - X0); ctx.fillText(kh(k), x - 4, Y1 + 16); });
+      ctx.fillText("ចំនួនចង្កោម (k)", X1 - 60, Y1 + 34); ctx.save(); ctx.translate(20, (Y0 + Y1) / 2 + 30); ctx.rotate(-Math.PI / 2); ctx.fillText("WCSS (កំហុសក្នុងចង្កោម)", 0, 0); ctx.restore();
+      ctx.beginPath(); vals.forEach((v, i) => { const x = X0 + (i / (ks.length - 1)) * (X1 - X0), y = Y1 - (v / mx) * (Y1 - Y0); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+      ctx.strokeStyle = "#1565c0"; ctx.lineWidth = 2; ctx.stroke();
+      vals.forEach((v, i) => { const x = X0 + (i / (ks.length - 1)) * (X1 - X0), y = Y1 - (v / mx) * (Y1 - Y0); ctx.beginPath(); ctx.arc(x, y, 4, 0, 7); ctx.fillStyle = i === 3 ? "#e65100" : "#1565c0"; ctx.fill(); });
+      ctx.fillStyle = "#e65100"; ctx.font = `12px ${font()}`; ctx.fillText("← កែងដៃប្រហាក់ប្រហែល (k=5)", X0 + (3 / (ks.length - 1)) * (X1 - X0) + 8, Y1 - (vals[3] / mx) * (Y1 - Y0) - 6);
+      out.innerHTML = "កំហុសសរុប (WCSS) ធ្លាក់លឿននៅដំបូង រួចធ្លាក់យឺតៗ។ ចំណុច «កែងដៃ» ជាកន្លែងដែលការបន្ថែមចង្កោមថ្មី លែងកាត់បន្ថយកំហុសច្រើនទៀត។ សម្រាប់ទិដ្ឋភាពគំរូនេះ (ទឹក ព្រៃ ស្រែ សំណង់ ដីទទេ) កែងដៃស្ថិតជិត k=5 ដែលត្រូវនឹងចំនួនប្រភេទគម្របដីពិត។<br><span class=\"sim-hint\">វិធីនេះជាការណែនាំ មិនមែនវិធីត្រឹមត្រូវទាំងស្រុងទេ។ ចំនួនចង្កោមសមស្របគួរផ្ទៀងផ្ទាត់ដោយចំណេះដឹងតំបន់ផងដែរ។</span>";
+    };
+    draw(); window.addEventListener("resize", () => el.isConnected && draw());
+  };
+
+  /* ---------- L12 · supervised classification (minimum distance / parallelepiped) ---------- */
+  const noiseHash = (i, b) => { let x = (i * 374761393 + b * 668265263) >>> 0; x = (x ^ (x >>> 13)) >>> 0; x = Math.imul(x, 1274126177) >>> 0; x = (x ^ (x >>> 16)) >>> 0; return (x % 2000) / 1000 - 1; };
+  const reflNoisy = (S, b, i) => clamp(refl(S, b, i) + 0.06 * noiseHash(i, b), 0, 1);
+  window.EXTRA_SIMS["rs-supervised"] = async (el) => {
+    const S = await loadScene();
+    const { cv, ctx, out, q } = shell(el, "ការចាត់ថ្នាក់មានការណែនាំ៖ ចម្ងាយអប្បបរមា",
+      `<label>ចំនួនគំរូក្នុងមួយថ្នាក់ <b class="sv-nv"></b> <input type="range" class="sv-n" min="3" max="40" value="10"></label>
+       <button type="button" class="sv-run">យកគំរូ និងចាត់ថ្នាក់</button>`);
+    const W = 640, H = 340;
+    let seed = 11; const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
+    const CCOL = ["#1565c0", "#2e7d32", "#7cb342", "#c62828", "#a1887f"];
+    let signatures = null, classified = null;
+    const takeSamples = (perClass) => {
+      const byClass = [[], [], [], [], []];
+      for (let i = 0; i < S.n * S.n; i++) byClass[S.cls[i]].push(i);
+      signatures = byClass.map((idxs) => { const picks = []; for (let k = 0; k < perClass && idxs.length; k++) picks.push(idxs[Math.floor(rnd() * idxs.length)]);
+        const mean = [0, 0, 0, 0, 0, 0]; picks.forEach((i) => { for (let b = 0; b < 6; b++) mean[b] += reflNoisy(S, b, i); });
+        return mean.map((v) => v / picks.length); });
+    };
+    const classify = () => { classified = new Uint8Array(S.n * S.n);
+      for (let i = 0; i < S.n * S.n; i++) { let best = 0, bd = Infinity;
+        signatures.forEach((sig, c) => { let d = 0; for (let b = 0; b < 6; b++) d += (reflNoisy(S, b, i) - sig[b]) ** 2; if (d < bd) { bd = d; best = c; } });
+        classified[i] = best; } };
+    const draw = () => {
+      fit(cv, ctx, W, H); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+      putScaled(ctx, composite(S, [2, 1, 0], S.n, false), 12, 18, 190);
+      ctx.font = `11px ${font()}`; ctx.fillStyle = "#333"; ctx.fillText("ពណ៌ពិត", 12, 224);
+      if (classified) { const img = ctx.createImageData(S.n, S.n);
+        for (let i = 0; i < S.n * S.n; i++) { const c = hexToRgb(CCOL[classified[i]]); const o = i * 4; img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2]; img.data[o + 3] = 255; }
+        putScaled(ctx, img, 222, 18, 190); ctx.fillText("លទ្ធផលចាត់ថ្នាក់", 222, 224); }
+      else { ctx.fillStyle = "#999"; ctx.fillText("ចុច «យកគំរូ និងចាត់ថ្នាក់»", 222, 110); }
+      ctx.font = `12px ${font()}`;
+      S.classes.forEach((n, c) => { const y = 60 + c * 22; ctx.fillStyle = CCOL[c]; ctx.fillRect(432, y, 16, 14); ctx.strokeStyle = "#999"; ctx.strokeRect(432, y, 16, 14);
+        ctx.fillStyle = "#333"; ctx.fillText(n, 454, y + 12); });
+      if (classified) { let correct = 0; for (let i = 0; i < S.n * S.n; i++) if (classified[i] === S.cls[i]) correct++;
+        const acc = (correct / (S.n * S.n)) * 100;
+        out.innerHTML = `ភាពត្រឹមត្រូវសរុប ≈ <b>${fmtN(acc)}%</b> ជាមួយ <b>${kh(+q(".sv-n").value)}</b> គំរូក្នុងមួយថ្នាក់<br><span class="sim-hint">ចំនួនគំរូតិចពេក ធ្វើឲ្យសញ្ញាណថ្នាក់មិនស្ថិតស្ថេរ ហើយភាពត្រឹមត្រូវប្រែប្រួលខ្លាំងរាល់ដងយកគំរូថ្មី។ ការវាយតម្លៃភាពត្រឹមត្រូវដ៏តឹងរឹងជាងនេះ ស្ថិតក្នុងមេរៀនទី១៣។</span>`;
+      } else out.innerHTML = "ជ្រើសចំនួនគំរូ ហើយចុចប៊ូតុងដើម្បីចាត់ថ្នាក់ក្រឡាទាំងអស់ដោយវិធីចម្ងាយអប្បបរមា។";
+    };
+    const hexToRgb = (h) => [1, 3, 5].map((i) => parseInt(h.substr(i, 2), 16));
+    el.querySelector(".sv-run").onclick = () => { seed = Math.floor(Math.random() * 90000) + 1; takeSamples(+q(".sv-n").value); classify(); draw(); };
+    q(".sv-n").addEventListener("input", () => (q(".sv-nv").textContent = kh(+q(".sv-n").value)));
+    q(".sv-nv").textContent = kh(10);
+    draw(); window.addEventListener("resize", () => el.isConnected && draw());
+  };
+
+  /* ---------- L12 · decision boundary visualisation (2-band) ---------- */
+  window.EXTRA_SIMS["rs-boundary"] = (el) => {
+    const { cv, ctx, out, q } = shell(el, "ព្រំដែនការសម្រេចចិត្ត៖ ចម្ងាយអប្បបរមា ធៀបនឹង Parallelepiped",
+      `<span class="sim-seg bd-m"><button type="button" data-m="dist" class="on">ចម្ងាយអប្បបរមា</button><button type="button" data-m="para">Parallelepiped</button></span>`);
+    const W = 640, H = 320;
+    const pts = { water: [0.05, 0.02], forest: [0.55, 0.15], rice: [0.75, 0.35] };
+    const cols = { water: "#1565c0", forest: "#2e7d32", rice: "#7cb342" };
+    const X0 = 60, Y0 = 20, X1 = 480, Y1 = 280;
+    const X = (v) => X0 + v * (X1 - X0), Y = (v) => Y1 - v * (Y1 - Y0);
+    const draw = () => {
+      fit(cv, ctx, W, H); const mode = el.querySelector(".bd-m .on").dataset.m;
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+      const size = 3;
+      for (let py = 0; py <= (Y1 - Y0); py += size) for (let px = 0; px <= (X1 - X0); px += size) {
+        const vx = px / (X1 - X0), vy = 1 - py / (Y1 - Y0);
+        let cls;
+        if (mode === "dist") { let best = null, bd = Infinity;
+          Object.entries(pts).forEach(([k, [a, b]]) => { const d = (vx - a) ** 2 + (vy - b) ** 2; if (d < bd) { bd = d; best = k; } }); cls = best;
+        } else { cls = null;
+          Object.entries(pts).forEach(([k, [a, b]]) => { if (Math.abs(vx - a) < 0.14 && Math.abs(vy - b) < 0.14) cls = k; }); }
+        if (cls) { ctx.fillStyle = cols[cls]; ctx.globalAlpha = 0.28; ctx.fillRect(X0 + px, Y0 + (Y1 - Y0 - py - size), size + 1, size + 1); ctx.globalAlpha = 1; }
+      }
+      ctx.strokeStyle = "#555"; ctx.strokeRect(X0, Y0, X1 - X0, Y1 - Y0);
+      Object.entries(pts).forEach(([k, [a, b]]) => { ctx.beginPath(); ctx.arc(X(a), Y(b), 6, 0, 7); ctx.fillStyle = cols[k]; ctx.fill(); ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke();
+        if (mode === "para") { ctx.strokeStyle = cols[k]; ctx.lineWidth = 1.2; ctx.setLineDash([3, 2]); ctx.strokeRect(X(a - 0.14), Y(b + 0.14), 0.28 * (X1 - X0), 0.28 * (Y1 - Y0)); ctx.setLineDash([]); } });
+      ctx.font = `11px ${font()}`; ctx.fillStyle = "#333"; ctx.fillText("ក្រហម", X1 - 30, Y1 + 16); ctx.save(); ctx.translate(20, (Y0 + Y1) / 2); ctx.rotate(-Math.PI / 2); ctx.fillText("NIR", 0, 0); ctx.restore();
+      out.innerHTML = mode === "dist"
+        ? "ចម្ងាយអប្បបរមា៖ ក្រឡាទាំងអស់ត្រូវបានចាត់ថ្នាក់ (ព្រំដែនបិទជិត គ្មានតំបន់ទទេ)។ ចំណុចនៅចម្ងាយឆ្ងាយពីគំរូទាំងអស់ នៅតែត្រូវបានចាត់ថ្នាក់ទៅថ្នាក់ជិតបំផុត ទោះវាមិនស្រដៀងថ្នាក់នោះក៏ដោយ។"
+        : "Parallelepiped៖ កំណត់ប្រអប់ជុំវិញគំរូនីមួយៗ។ ក្រឡាដែលធ្លាក់ក្រៅប្រអប់ទាំងអស់ មិនត្រូវបានចាត់ថ្នាក់ (តំបន់ស) ដែលស្មោះត្រង់ជាង ប៉ុន្តែផ្ដល់ «គម្លាត» ច្រើន។";
+    };
+    el.querySelectorAll(".bd-m button").forEach((b) => (b.onclick = () => { el.querySelectorAll(".bd-m button").forEach((x) => x.classList.remove("on")); b.classList.add("on"); draw(); }));
+    draw(); window.addEventListener("resize", () => el.isConnected && draw());
+  };
+
+  /* ---------- L13 · confusion matrix builder ---------- */
+  window.EXTRA_SIMS["rs-confmat"] = async (el) => {
+    const S = await loadScene();
+    const { cv, ctx, out, q } = shell(el, "បង្កើត និងអានតារាងច្របូកច្របល់",
+      `<label>ចំនួនចំណុចផ្ទៀងផ្ទាត់ក្នុងមួយថ្នាក់ <b class="cm-nv"></b> <input type="range" class="cm-n" min="5" max="40" value="15"></label>
+       <button type="button" class="cm-run">យកគំរូ ចាត់ថ្នាក់ និងវាយតម្លៃ</button>`);
+    const W = 640, H = 420;
+    const k = 5;
+    let seed = 21; const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
+    const noiseHash = (i, b) => { let x = (i * 374761393 + b * 668265263) >>> 0; x = (x ^ (x >>> 13)) >>> 0; x = Math.imul(x, 1274126177) >>> 0; x = (x ^ (x >>> 16)) >>> 0; return (x % 2000) / 1000 - 1; };
+    const rNoisy = (b, i) => clamp(refl(S, b, i) + 0.06 * noiseHash(i, b), 0, 1);
+    let M = null, trainIdx = [], valIdx = [];
+    const run = () => {
+      const perClass = +q(".cm-n").value;
+      const byClass = [[], [], [], [], []];
+      for (let i = 0; i < S.n * S.n; i++) byClass[S.cls[i]].push(i);
+      trainIdx = []; valIdx = [];
+      const sigs = byClass.map((idxs) => { const shuffled = idxs.slice().sort(() => rnd() - 0.5);
+        const train = shuffled.slice(0, perClass), val = shuffled.slice(perClass, perClass + Math.max(5, Math.floor(perClass / 2)));
+        trainIdx.push(train); valIdx.push(val);
+        const m = [0, 0, 0, 0, 0, 0]; train.forEach((i) => { for (let b = 0; b < 6; b++) m[b] += rNoisy(b, i); }); return m.map((v) => v / train.length); });
+      M = Array.from({ length: k }, () => new Array(k).fill(0));
+      valIdx.forEach((idxs, trueC) => idxs.forEach((i) => { let best = 0, bd = Infinity;
+        sigs.forEach((sig, c) => { let d = 0; for (let b = 0; b < 6; b++) d += (rNoisy(b, i) - sig[b]) ** 2; if (d < bd) { bd = d; best = c; } });
+        M[trueC][best]++; }));
+    };
+    const draw = () => {
+      fit(cv, ctx, W, H); q(".cm-nv").textContent = kh(+q(".cm-n").value);
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+      if (!M) { ctx.font = `13px ${font()}`; ctx.fillStyle = "#999"; ctx.fillText("ចុចប៊ូតុងខាងលើ ដើម្បីបង្កើតតារាងច្របូកច្របល់", 20, 40); out.innerHTML = "ជ្រើសចំនួនគំរូ ហើយចុចប៊ូតុង។"; return; }
+      const cx0 = 160, cy0 = 60, cell = 42;
+      ctx.font = `11px ${font()}`; ctx.fillStyle = "#333"; ctx.fillText("ចាត់ថ្នាក់ព្យាករ (Predicted)", cx0, 30);
+      S.classes.forEach((n2, j) => { ctx.save(); ctx.translate(cx0 + j * cell + cell / 2 + 4, cy0 - 10); ctx.rotate(-Math.PI / 4); ctx.fillText(n2, 0, 0); ctx.restore(); });
+      S.classes.forEach((n2, i) => ctx.fillText(n2, cx0 - 60, cy0 + i * cell + cell / 2 + 4));
+      const rowSum = M.map((r) => r.reduce((a, b) => a + b, 0));
+      const colSum = S.classes.map((_, j) => M.reduce((a, r) => a + r[j], 0));
+      let total = 0, diag = 0;
+      for (let i = 0; i < k; i++) for (let j = 0; j < k; j++) { const v = M[i][j]; total += v; if (i === j) diag += v;
+        ctx.fillStyle = i === j ? "#c8e6c9" : v > 0 ? "#ffe0b2" : "#fafafa"; ctx.fillRect(cx0 + j * cell, cy0 + i * cell, cell, cell);
+        ctx.strokeStyle = "#bbb"; ctx.strokeRect(cx0 + j * cell, cy0 + i * cell, cell, cell);
+        ctx.fillStyle = "#333"; ctx.font = `12px ${font()}`; ctx.fillText(kh(v), cx0 + j * cell + cell / 2 - 6, cy0 + i * cell + cell / 2 + 4); }
+      // row/col totals
+      for (let i = 0; i < k; i++) ctx.fillText(kh(rowSum[i]), cx0 + k * cell + 8, cy0 + i * cell + cell / 2 + 4);
+      for (let j = 0; j < k; j++) ctx.fillText(kh(colSum[j]), cx0 + j * cell + cell / 2 - 6, cy0 + k * cell + 16);
+      ctx.fillText("សរុប", cx0 + k * cell + 4, cy0 - 6);
+      const OA = (diag / total) * 100;
+      const y0 = cy0 + k * cell + 40;
+      ctx.font = `12px ${font()}`; ctx.fillStyle = "#333";
+      ctx.fillText(`ភាពត្រឹមត្រូវសរុប (Overall Accuracy) = ${kh(diag)} ÷ ${kh(total)} = ${fmtN(OA)}%`, 20, y0);
+      let ly = y0 + 22;
+      S.classes.forEach((n2, i) => { const PA = rowSum[i] ? (M[i][i] / rowSum[i]) * 100 : 0, UA = colSum[i] ? (M[i][i] / colSum[i]) * 100 : 0;
+        ctx.fillText(`${n2}៖ Producer's = ${fmtN(PA)}% · User's = ${fmtN(UA)}%`, 20, ly); ly += 18; });
+      out.innerHTML = `<span class="sim-hint">Producer's accuracy (ជួរដេក) = ពីចំណុចពិតនៃថ្នាក់នេះ ប៉ុន្មានភាគរយត្រូវបានចាត់ថ្នាក់ត្រូវ។ User's accuracy (ជួរឈរ) = ពីចំណុចដែលចាត់ថ្នាក់ថាជាថ្នាក់នេះ ប៉ុន្មានភាគរយជាការពិត។</span>`;
+    };
+    el.querySelector(".cm-run").onclick = () => { run(); draw(); };
+    draw(); window.addEventListener("resize", () => el.isConnected && draw());
+  };
+
+  /* ---------- L13 · Kappa intuition ---------- */
+  window.EXTRA_SIMS["rs-kappa"] = (el) => {
+    const { cv, ctx, out, q } = shell(el, "ហេតុអ្វីត្រូវការ Kappa បន្ថែមពីលើភាពត្រឹមត្រូវសរុប",
+      `<label>ថ្នាក់ភាគច្រើន (%) <b class="kp-mv"></b> <input type="range" class="kp-m" min="20" max="95" value="80"></label>
+       <label>ភាពត្រឹមត្រូវសរុប (%) <b class="kp-av"></b> <input type="range" class="kp-a" min="50" max="99" value="82"></label>`);
+    const W = 640, H = 260;
+    const draw = () => {
+      fit(cv, ctx, W, H); const maj = +q(".kp-m").value / 100, OA = +q(".kp-a").value / 100;
+      q(".kp-mv").textContent = kh(+q(".kp-m").value); q(".kp-av").textContent = kh(+q(".kp-a").value);
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+      const pe = maj * maj + (1 - maj) * (1 - maj);              // chance agreement, 2-class simplification
+      const kappa = (OA - pe) / (1 - pe);
+      const X0 = 60, X1 = 560, Y0 = 30, Y1 = 150;
+      [["ភាពត្រឹមត្រូវសរុប", OA, "#1565c0"], ["ការឯកភាពដោយចៃដន្យ (pe)", pe, "#e65100"], ["Kappa", Math.max(0, kappa), "#2e7d32"]].forEach(([lab, v, col], i) => {
+        const y = Y0 + i * 42; ctx.fillStyle = "#eceff1"; ctx.fillRect(X0, y, X1 - X0, 24);
+        ctx.fillStyle = col; ctx.fillRect(X0, y, Math.max(0, v) * (X1 - X0), 24);
+        ctx.fillStyle = "#333"; ctx.font = `12px ${font()}`; ctx.fillText(`${lab}: ${fmtN(v * 100)}%`, X0, y - 4); });
+      out.innerHTML = `Kappa = (OA − pe) ÷ (1 − pe) = <b>${fmtN(kappa, 2)}</b><br><span class="sim-hint">បើថ្នាក់មួយគ្របដណ្ដប់ភាគច្រើននៃទិន្នន័យ (ដូចព្រៃឈើនៅភាគច្រើននៃប្រទេស) សូម្បីតែការទាយចៃដន្យក៏អាចទទួលបានភាពត្រឹមត្រូវសរុបខ្ពស់ដែរ។ Kappa កាត់បន្ថយឥទ្ធិពលនៃការឯកភាពដោយចៃដន្យនេះចេញ ដើម្បីបង្ហាញលទ្ធផលពិតរបស់ការចាត់ថ្នាក់។</span>`;
     };
     el.querySelectorAll("input").forEach((x) => x.addEventListener("input", draw)); draw();
     window.addEventListener("resize", () => el.isConnected && draw());
