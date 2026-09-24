@@ -986,4 +986,149 @@
     el.querySelectorAll("input").forEach((x) => x.addEventListener("input", draw)); draw();
     window.addEventListener("resize", () => el.isConnected && draw());
   };
+
+  /* ---------- L14 · image differencing / change detection ---------- */
+  window.EXTRA_SIMS["rs-changedetect"] = async (el) => {
+    const S = await loadScene();
+    const { cv, ctx, out, q } = shell(el, "ការរកការផ្លាស់ប្ដូរដោយវិធីខុសគ្នានៃរូបភាព (Image Differencing)",
+      `<label>ភាពចាស់ទុំនៃការកាប់ព្រៃ <b class="cd-tv"></b> <input type="range" class="cd-t" min="0" max="100" value="40"></label>
+       <label>កម្រិតកំណត់ (threshold) NDVI Δ <b class="cd-hv"></b> <input type="range" class="cd-h" min="5" max="60" value="20"></label>`);
+    const W = 640, H = 360;
+    const n = S.n;
+    // deterministic "clearing" patch (simulated deforestation) south-west of the forest block
+    const clearMask = new Float32Array(n * n);
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { const dx = x - 40, dy = y - 118;
+      const d = Math.sqrt(dx * dx * 1.3 + dy * dy); clearMask[y * n + x] = d < 22 ? 1 : d < 30 ? (30 - d) / 8 : 0; }
+    const ndvi = (b) => (refl(S, 3, b) - refl(S, 2, b)) / (refl(S, 3, b) + refl(S, 2, b) + 1e-9);
+    const draw = () => {
+      fit(cv, ctx, W, H); const prog = +q(".cd-t").value / 100, thr = +q(".cd-h").value / 100;
+      q(".cd-tv").textContent = kh(+q(".cd-t").value) + "%"; q(".cd-hv").textContent = fmtN(thr, 2);
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+      putScaled(ctx, composite(S, [2, 1, 0], n, false), 12, 18, 185);
+      ctx.font = `11px ${font()}`; ctx.fillStyle = "#333"; ctx.fillText("ឆ្នាំ ២០២០ (មុន)", 12, 214);
+      // "after" image: where clearMask*prog exceeds threshold, replace forest reflectance with bare-soil-like reflectance
+      const img2 = ctx.createImageData(n, n), diffImg = ctx.createImageData(n, n);
+      let changed = 0;
+      const BARE = [0.135, 0.165, 0.20, 0.25, 0.31, 0.27];
+      for (let i = 0; i < n * n; i++) { const clear = clearMask[i] * prog;
+        const mix = (b) => refl(S, b, i) * (1 - clear) + BARE[b] * clear;
+        const o = i * 4;
+        img2.data[o] = clamp(mix(2) * 255 * 2.2, 0, 255); img2.data[o + 1] = clamp(mix(1) * 255 * 2.2, 0, 255); img2.data[o + 2] = clamp(mix(0) * 255 * 2.2, 0, 255); img2.data[o + 3] = 255;
+        const nirA = refl(S, 3, i), redA = refl(S, 2, i), ndviA = (nirA - redA) / (nirA + redA + 1e-9);
+        const nirB = mix(3), redB = mix(2), ndviB = (nirB - redB) / (nirB + redB + 1e-9);
+        const d = ndviA - ndviB, isChange = d > thr;
+        if (isChange) changed++;
+        diffImg.data[o] = isChange ? 220 : 245; diffImg.data[o + 1] = isChange ? 40 : 245; diffImg.data[o + 2] = isChange ? 40 : 245; diffImg.data[o + 3] = 255; }
+      putScaled(ctx, img2, 222, 18, 185); ctx.fillText("ឆ្នាំ ២០២៤ (ក្រោយ)", 222, 214);
+      putScaled(ctx, diffImg, 432, 18, 185); ctx.fillText("ផែនទីការផ្លាស់ប្ដូរ (ក្រហម)", 432, 214);
+      const ha = (changed / (n * n)) * 4;                        // scene ~2x2km => 4 sq km total, teaching approximation
+      out.innerHTML = `ផ្ទៃដែលរកឃើញថាបានផ្លាស់ប្ដូរ ≈ <b>${fmtN(ha, 2)} គម²</b> (${fmtN((changed / (n * n)) * 100, 1)}% នៃទិដ្ឋភាព)<br><span class="sim-hint">វិធីនេះគណនា NDVI ដាច់ដោយឡែកសម្រាប់រូបភាពទាំងពីរ រួចដកគ្នា។ តម្លៃខ្ពស់ (ធ្លាក់ចុះខ្លាំង) ចាត់ទុកជាការផ្លាស់ប្ដូរ។ កម្រិតកំណត់ទាបពេក រកឃើញការប្រែប្រួលធម្មតា (ចម្រុះជាភាពមិនប្រាកដប្រជា) ជា «ការផ្លាស់ប្ដូរ» ដោយខុស។ កម្រិតកំណត់ខ្ពស់ពេក អាចខកខានការផ្លាស់ប្ដូរតូចៗ។ ទិន្នន័យនេះជាគំរូសម្រាប់បង្រៀន។</span>`;
+    };
+    el.querySelectorAll("input").forEach((x) => x.addEventListener("input", draw)); draw();
+    window.addEventListener("resize", () => el.isConnected && draw());
+  };
+
+  /* ---------- L14 · phenology / NDVI time series ---------- */
+  window.EXTRA_SIMS["rs-timeseries"] = (el) => {
+    const { cv, ctx, out, q } = shell(el, "ដេរិកកម្មនៃ NDVI តាមរដូវដាំដុះ (Phenology)",
+      `<label>ប្រភេទស្រែ <select class="ts-c"><option value="single" selected>ស្រែតែមួយរដូវ (ភ្លៀង)</option><option value="double">ស្រែពីររដូវ (ស្រោចស្រព)</option><option value="forest">ព្រៃឈើអចិន្ត្រៃយ៍</option></select></label>
+       <label>ខែបច្ចុប្បន្ន <b class="ts-mv"></b> <input type="range" class="ts-m" min="0" max="11" value="6"></label>`);
+    const W = 640, H = 300;
+    const MONTHS = ["មករា", "កុម្ភៈ", "មីនា", "មេសា", "ឧសភា", "មិថុនា", "កក្កដា", "សីហា", "កញ្ញា", "តុលា", "វិច្ឆិកា", "ធ្នូ"];
+    const curve = (kind) => { const pts = [];
+      for (let m = 0; m < 12; m++) { let v;
+        if (kind === "forest") v = 0.78 + 0.05 * Math.sin((m / 12) * Math.PI * 2);
+        else if (kind === "single") { // transplant ~ July, peak ~Sept-Oct, harvest ~Dec
+          const phase = ((m - 6 + 12) % 12) / 12; v = phase < 0.08 ? 0.05 : phase < 0.5 ? 0.05 + (phase - 0.08) / 0.42 * 0.8 : phase < 0.6 ? 0.85 : phase < 0.75 ? 0.85 - (phase - 0.6) / 0.15 * 0.7 : 0.1; }
+        else { const phase1 = ((m - 1 + 12) % 12) / 12, phase2 = ((m - 7 + 12) % 12) / 12;
+          const c1 = phase1 < 0.42 ? 0.05 + phase1 / 0.42 * 0.78 : phase1 < 0.5 ? 0.83 : 0.83 * Math.max(0, 1 - (phase1 - 0.5) / 0.17);
+          const c2 = phase2 < 0.42 ? 0.05 + phase2 / 0.42 * 0.78 : phase2 < 0.5 ? 0.83 : 0.83 * Math.max(0, 1 - (phase2 - 0.5) / 0.17);
+          v = Math.max(c1, c2, 0.05); }
+        pts.push(Math.max(0.02, v)); }
+      return pts; };
+    const draw = () => {
+      fit(cv, ctx, W, H); const kind = q(".ts-c").value, cm = +q(".ts-m").value;
+      q(".ts-mv").textContent = MONTHS[cm];
+      const pts = curve(kind);
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+      const X0 = 60, X1 = 600, Y0 = 30, Y1 = 210;
+      ctx.strokeStyle = "#555"; ctx.beginPath(); ctx.moveTo(X0, Y1); ctx.lineTo(X1, Y1); ctx.moveTo(X0, Y0); ctx.lineTo(X0, Y1); ctx.stroke();
+      ctx.font = `10px ${font()}`; ctx.fillStyle = "#555";
+      MONTHS.forEach((mn, i) => { const x = X0 + (i / 11) * (X1 - X0); ctx.fillText(mn.slice(0, 3), x - 10, Y1 + 16); });
+      [0, 0.25, 0.5, 0.75, 1].forEach((v) => { const y = Y1 - v * (Y1 - Y0); ctx.fillText(fmtN(v, 2), 20, y + 4); ctx.strokeStyle = "#f0f0f0"; ctx.beginPath(); ctx.moveTo(X0, y); ctx.lineTo(X1, y); ctx.stroke(); });
+      ctx.fillText("NDVI", X0 - 20, Y0 - 10);
+      ctx.beginPath(); pts.forEach((v, i) => { const x = X0 + (i / 11) * (X1 - X0), y = Y1 - v * (Y1 - Y0); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+      ctx.strokeStyle = "#2e7d32"; ctx.lineWidth = 2.4; ctx.stroke();
+      pts.forEach((v, i) => { const x = X0 + (i / 11) * (X1 - X0), y = Y1 - v * (Y1 - Y0); ctx.beginPath(); ctx.arc(x, y, 3, 0, 7); ctx.fillStyle = "#2e7d32"; ctx.fill(); });
+      const cx = X0 + (cm / 11) * (X1 - X0), cy = Y1 - pts[cm] * (Y1 - Y0);
+      ctx.strokeStyle = "#c62828"; ctx.lineWidth = 1.4; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(cx, Y0); ctx.lineTo(cx, Y1); ctx.stroke(); ctx.setLineDash([]);
+      ctx.beginPath(); ctx.arc(cx, cy, 5, 0, 7); ctx.fillStyle = "#c62828"; ctx.fill();
+      const STAGE = kind === "forest" ? "ព្រៃឈើមិនប្ដូរច្រើនតាមរដូវ" : pts[cm] < 0.15 ? "ទឹកជន់ / ដីទទេ (មុនស្ទូង ឬក្រោយច្រូតកាត់)" : pts[cm] < 0.5 ? "ដំណាំកំពុងលូតលាស់" : pts[cm] < 0.75 ? "ដំណាំជិតដល់កំពូល" : "ដំណាំពេញលូតលាស់ / ជិតច្រូតកាត់";
+      out.innerHTML = `ខែ <b>${MONTHS[cm]}</b>៖ NDVI ≈ <b>${fmtN(pts[cm], 2)}</b> · ដំណាក់កាលប្រហាក់ប្រហែល៖ <b>${STAGE}</b><br><span class="sim-hint">ខ្សែកោងនេះជាគំរូធម្មតាសម្រាប់បង្រៀន។ រូបរាងពិតប្រែប្រួលតាមពូជ ទឹកភ្លៀង និងការគ្រប់គ្រង។ ដើម្បីវាស់ខ្សែកោងពិត ត្រូវការរូបភាពជាច្រើននៅចន្លោះពេលទៀងទាត់ ដែលហៅថា <b>ស៊េរីពេលវេលា (Time series)</b>។</span>`;
+    };
+    el.querySelectorAll("select,input").forEach((x) => x.addEventListener("input", draw)); draw();
+    window.addEventListener("resize", () => el.isConnected && draw());
+  };
+
+  /* ---------- L15 · SAR backscatter vs optical, under cloud ---------- */
+  window.EXTRA_SIMS["rs-sar"] = async (el) => {
+    const S = await loadScene();
+    const { cv, ctx, out, q } = shell(el, "រ៉ាដា SAR ធៀបនឹងអុបទិក ក្រោមពពក",
+      `<label><input type="checkbox" class="sr-c" checked> ពពកគ្របដណ្ដប់</label>
+       <label><input type="checkbox" class="sr-s" checked> សំឡេងរំខាន Speckle</label>`);
+    const W = 640, H = 340;
+    const n = S.n;
+    // synthetic backscatter (dB-like 0..1 display scale) per class + per-pixel texture
+    const BACK = { 0: 0.08, 1: 0.62, 2: 0.40, 3: 0.85, 4: 0.30 };           // water low, built very high (corner reflector), forest high/rough
+    const noiseHash = (i, k) => { let x = (i * 2654435761 + k * 40503) >>> 0; x = (x ^ (x >>> 13)) >>> 0; x = Math.imul(x, 1274126177) >>> 0; return ((x >>> 16) % 1000) / 1000; };
+    const cloudMask = new Float32Array(n * n);
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { const a = Math.sin(x * 0.05 + 1) * Math.cos(y * 0.04 + 2) + Math.sin(x * 0.02 - y * 0.03);
+      cloudMask[y * n + x] = clamp(a * 0.5 + 0.5, 0, 1); }
+    const draw = () => {
+      fit(cv, ctx, W, H); const cloud = q(".sr-c").checked, speck = q(".sr-s").checked;
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+      const opt = ctx.createImageData(n, n), sar = ctx.createImageData(n, n);
+      for (let i = 0; i < n * n; i++) { const o = i * 4;
+        let r = refl(S, 2, i) * 2.2, g = refl(S, 1, i) * 2.2, b = refl(S, 0, i) * 2.2;
+        if (cloud && cloudMask[i] > 0.55) { const cv2 = 0.85 + noiseHash(i, 1) * 0.15; r = g = b = cv2; }
+        opt.data[o] = clamp(r * 255, 0, 255); opt.data[o + 1] = clamp(g * 255, 0, 255); opt.data[o + 2] = clamp(b * 255, 0, 255); opt.data[o + 3] = 255;
+        let v = BACK[S.cls[i]]; if (speck) v = clamp(v * (0.7 + noiseHash(i, 2) * 0.6), 0, 1);
+        const vv = Math.round(v * 255); sar.data[o] = vv; sar.data[o + 1] = vv; sar.data[o + 2] = vv; sar.data[o + 3] = 255; }
+      putScaled(ctx, opt, 14, 18, 290); ctx.font = `12px ${font()}`; ctx.fillStyle = "#333"; ctx.fillText("អុបទិក (Sentinel-2)", 14, 324);
+      putScaled(ctx, sar, 334, 18, 290); ctx.fillText("រ៉ាដា SAR (Sentinel-1 · គំរូ)", 334, 324);
+      const cloudPct = cloud ? (Array.from(cloudMask).filter((v) => v > 0.55).length / (n * n)) * 100 : 0;
+      out.innerHTML = cloud
+        ? `ពពកបាំង ≈ <b>${fmtN(cloudPct)}%</b> នៃទិដ្ឋភាពអុបទិក។ រូបភាពរ៉ាដាមើលឃើញផ្ទៃដីទាំងស្រុង ព្រោះរលកមីក្រូវ៉េវឆ្លងកាត់ពពក។`
+        : "គ្មានពពកទេ ដូច្នេះទាំងពីររូបភាពមើលឃើញផ្ទៃដីស្មើគ្នា។ សូមសាកល្បងបើកពពកឡើងវិញ ដើម្បីមើលភាពខុសគ្នា។";
+      out.innerHTML += `<br><span class="sim-hint">ក្នុងរូបរ៉ាដា ទឹកមើលទៅខ្មៅ (ស្មូធ ឆ្លុះចេញឆ្ងាយពីឧបករណ៍) សំណង់ភ្លឺបំផុត (ឆ្លុះត្រឡប់ត្រង់ដូចកញ្ចក់ជ្រុង) ព្រៃឈើមធ្យមទៅភ្លឺ (រដុប) ។ ចំណុចភ្លឺ/ងងឹតតូចៗគ្រាប់ៗគ្នាហៅថា <b>speckle</b> ដែលជាសំឡេងរំខានធម្មតានៃរូបភាពរ៉ាដា។</span>`;
+    };
+    el.querySelectorAll("input").forEach((x) => x.addEventListener("change", draw)); draw();
+    window.addEventListener("resize", () => el.isConnected && draw());
+  };
+
+  /* ---------- L15 · SAR flood mapping threshold ---------- */
+  window.EXTRA_SIMS["rs-sarflood"] = (el) => {
+    const { cv, ctx, out, q } = shell(el, "ធ្វើផែនទីទឹកជំនន់ពីរ៉ាដា៖ កម្រិតកំណត់ Backscatter",
+      `<label>កម្រិតកំណត់ (dB · គំរូ) <b class="sf-tv"></b> <input type="range" class="sf-t" min="10" max="60" value="25"></label>`);
+    const W = 640, H = 300, n = 90;
+    // synthetic pre-flood vs flood backscatter grid (simple shapes: river + floodplain that fills as threshold relates to "water extent")
+    let seed = 5; const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
+    const base = new Float32Array(n * n);
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { const riverD = Math.abs(y - (45 + 10 * Math.sin(x / 12))); const lowland = Math.max(0, 1 - Math.abs(y - 45) / 35) * (0.4 + 0.3 * Math.sin(x / 9));
+      base[y * n + x] = riverD < 3 ? 0.05 : clamp(0.55 - lowland * 0.45 + rnd() * 0.08, 0.05, 0.9); }
+    const draw = () => {
+      fit(cv, ctx, W, H); const thr = +q(".sf-t").value / 100; q(".sf-tv").textContent = fmtN(+q(".sf-t").value);
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+      const img = ctx.createImageData(n, n); let waterPx = 0;
+      for (let i = 0; i < n * n; i++) { const v = base[i], isWater = v < thr; if (isWater) waterPx++;
+        const o = i * 4; if (isWater) { img.data[o] = 33; img.data[o + 1] = 100; img.data[o + 2] = 200; } else { const g = Math.round(v * 200 + 40); img.data[o] = g; img.data[o + 1] = g * 0.85; img.data[o + 2] = g * 0.6; }
+        img.data[o + 3] = 255; }
+      putScaled(ctx, img, 20, 18, 300);
+      ctx.font = `12px ${font()}`; ctx.fillStyle = "#333"; ctx.fillText("ខៀវ = ចាត់ទុកជាទឹក (backscatter < កម្រិតកំណត់)", 340, 60);
+      const areaKm2 = (waterPx / (n * n)) * 4;
+      out.innerHTML = `ផ្ទៃដែលចាត់ទុកជាទឹក ≈ <b>${fmtN(areaKm2, 2)} គម²</b> (${fmtN((waterPx / (n * n)) * 100)}% នៃទិដ្ឋភាព)<br><span class="sim-hint">ទឹកស្ងប់ឆ្លុះរលកចេញឆ្ងាយពីឧបករណ៍ ដូច្នេះមាន backscatter ទាប។ កម្រិតកំណត់ទាបពេក ខកខានផ្ទៃទឹករាក់ ឬមានរលក។ ខ្ពស់ពេក រួមបញ្ចូលដីសើម ឬស្រមោលជាទឹកខុស។ ការធ្វើផែនទីទឹកជំនន់ពិត ច្រើនតែប្រៀបធៀបរូបភាពមុន/ក្រោយជំនន់ ដើម្បីកាត់បន្ថយកំហុសនេះ (Image Differencing ដូច[មេរៀនទី១៤](lesson-14.md))។</span>`;
+    };
+    q(".sf-t").addEventListener("input", draw); draw();
+    window.addEventListener("resize", () => el.isConnected && draw());
+  };
 })();
