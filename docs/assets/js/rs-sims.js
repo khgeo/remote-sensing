@@ -364,4 +364,126 @@
     el.querySelectorAll("select,input").forEach((x) => x.addEventListener("input", draw)); draw();
     window.addEventListener("resize", () => el.isConnected && draw());
   };
+
+  /* ---------- L5 · the four resolutions and their trade-offs ---------- */
+  window.EXTRA_SIMS["rs-tradeoff"] = async (el) => {
+    const S = await loadScene();
+    const { cv, ctx, out, q } = shell(el, "គុណភាពបង្ហាញទាំងបួន និងការសម្របសម្រួល",
+      `<label>លំហ (ម) <select class="tr-s"><option>5</option><option selected>10</option><option>30</option><option>60</option><option>250</option></select></label>
+       <label>រ៉ាដ្យូម៉ែត្រ <select class="tr-b"><option value="1">១ ប៊ីត (២ កម្រិត)</option><option value="3">៣ ប៊ីត (៨)</option><option value="5">៥ ប៊ីត (៣២)</option><option value="8" selected>៨ ប៊ីត (២៥៦)</option><option value="12">១២ ប៊ីត (៤ ០៩៦)</option></select></label>
+       <label>ក្រុមរលក <select class="tr-n"><option value="3">៣ (RGB)</option><option value="6" selected>៦ (ពហុស្ពិចត្រាល់)</option><option value="13">១៣ (Sentinel-2)</option><option value="200">២០០ (hyperspectral)</option></select></label>`);
+    const W = 640, H = 340;
+    const draw = () => {
+      fit(cv, ctx, W, H);
+      const px = +q(".tr-s").value, bits = +q(".tr-b").value, nb = +q(".tr-n").value;
+      const size = Math.max(1, Math.round(S.n / (px / S.px)));
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+      const img = composite(S, [2, 1, 0], size, true), lv = Math.pow(2, bits);
+      for (let i = 0; i < img.data.length; i += 4) for (let k = 0; k < 3; k++)
+        img.data[i + k] = Math.round((Math.round((img.data[i + k] / 255) * (lv - 1)) / (lv - 1)) * 255);
+      putScaled(ctx, img, 14, 18, 300);
+      ctx.font = `12px ${font()}`; ctx.fillStyle = "#333";
+      ctx.fillText(`${kh(px)} ម · ${kh(bits)} ប៊ីត`, 14, 334);
+      // trade-off bars
+      const area = 100, pxPerScene = (area * 1e6) / (px * px);
+      const bytes = (pxPerScene * nb * (bits > 8 ? 2 : 1)) / 1e6;
+      const snr = Math.min(100, Math.round(((px * px) / (nb / 6) / 100) * 22));
+      const rows = [["ចំនួនក្រឡា (tile ១០០ គម²)", Math.min(100, Math.log10(pxPerScene) * 14), fmtN(Math.round(pxPerScene))],
+        ["ទំហំទិន្នន័យ (MB)", Math.min(100, Math.log10(Math.max(1.1, bytes)) * 22), fmtN(Math.round(bytes))],
+        ["សញ្ញាធៀបសំឡេងរំខាន (ធៀប)", snr, kh(snr) + "%"],
+        ["កម្រិតពណ៌ដែលបែងចែកបាន", Math.min(100, (bits / 12) * 100), fmtN(lv)]];
+      rows.forEach(([lab, v, txt], i) => { const y = 54 + i * 52;
+        ctx.fillStyle = "#333"; ctx.font = `12px ${font()}`; ctx.fillText(lab, 336, y - 6);
+        ctx.fillStyle = "#eceff1"; ctx.fillRect(336, y, 200, 14);
+        ctx.fillStyle = ["#1565c0", "#6a1b9a", "#2e7d32", "#e65100"][i]; ctx.fillRect(336, y, (v / 100) * 200, 14);
+        ctx.fillStyle = "#333"; ctx.fillText(txt, 544, y + 12); });
+      out.innerHTML = `ក្រឡា <b>${kh(px)} ម</b> · <b>${kh(bits)}</b> ប៊ីត · <b>${kh(nb)}</b> ក្រុមរលក<br>` +
+        `<span class="sim-hint">ការបង្កើនគុណភាពបង្ហាញមួយ តែងតម្រូវឲ្យបន្ថយមួយផ្សេង៖ ក្រឡាតូច និងក្រុមរលកច្រើន ទុកថាមពលតិចក្នុងមួយការវាស់ ដូច្នេះសញ្ញាធៀបសំឡេងរំខានធ្លាក់ ហើយទិន្នន័យរីកធំ។ ៨ ប៊ីតឡើងទៅ ភ្នែកមនុស្សលែងបែងចែកបាន ប៉ុន្តែការគណនានៅតែទទួលផល។</span>`;
+    };
+    el.querySelectorAll("select").forEach((x) => x.addEventListener("change", draw)); draw();
+    window.addEventListener("resize", () => el.isConnected && draw());
+  };
+
+  /* ---------- L6 · choosing a source ---------- */
+  window.EXTRA_SIMS["rs-choose"] = (el) => {
+    el.innerHTML = `<div class="sim-title">ជ្រើសប្រភពរូបភាពតាមសំណួរ</div>
+      <div class="sim-controls">
+        <label>វត្ថុតូចបំផុត <select class="ch-o"><option value="2">អគារ ឬព្រំក្បាលដី (~១០ ម)</option><option value="15" selected>ក្បាលស្រែ (~១០០ ម)</option><option value="60">ភូមិ ឬតំបន់ព្រៃ (~៥០០ ម)</option><option value="250">តំបន់ធំ (គីឡូម៉ែត្រ)</option></select></label>
+        <label>រដូវ <select class="ch-c"><option value="dry" selected>រដូវប្រាំង (ពពកតិច)</option><option value="wet">រដូវវស្សា (ពពកច្រើន)</option></select></label>
+        <label>ប្រវត្តិ <select class="ch-h"><option value="now" selected>ឆ្នាំបច្ចុប្បន្ន</option><option value="2015">តាំងពី ២០១៥</option><option value="1990">តាំងពីទសវត្សរ៍ ១៩៩០</option></select></label>
+        <label>ថវិកា <select class="ch-b"><option value="free" selected>ឥតគិតថ្លៃ</option><option value="paid">អាចទិញបាន</option></select></label></div>
+      <div class="ch-out sim-out"></div>`;
+    const draw = () => {
+      const o = +el.querySelector(".ch-o").value, c = el.querySelector(".ch-c").value,
+        h = el.querySelector(".ch-h").value, b = el.querySelector(".ch-b").value;
+      const rows = [];
+      const add = (name, ok, why) => rows.push([name, ok, why]);
+      add("Sentinel-2 (១០ ម · ៥ ថ្ងៃ · ឥតគិតថ្លៃ)", o >= 15 && h !== "1990" && !(c === "wet" && o < 60) ? 2 : o < 15 ? 0 : 1,
+        o < 15 ? "ក្រឡា ១០ ម មិនគ្រប់គ្រាន់សម្រាប់វត្ថុតូចបែបនេះ" : h === "1990" ? "គ្មានទិន្នន័យមុនឆ្នាំ ២០១៥" : c === "wet" ? "អាចប្រើបាន ប៉ុន្តែពពករារាំងញឹកញាប់" : "សមស្របបំផុត");
+      add("Landsat 8/9 (៣០ ម · ១៦ ថ្ងៃ · ឥតគិតថ្លៃ)", o >= 60 ? 2 : o >= 15 ? 1 : 0,
+        o < 15 ? "ក្រឡាធំពេក" : o < 60 ? "អាចប្រើបាន សម្រាប់ក្បាលស្រែធំ" : "សមស្រប ហើយមានក្រុមរលកកំដៅ");
+      add("បណ្ណសារ Landsat 5/7 (៣០ ម · តាំងពី ១៩៨៤)", h === "1990" ? 2 : 1, h === "1990" ? "ជម្រើសតែមួយគត់សម្រាប់ប្រវត្តិយូរ" : "ប្រើពេលត្រូវការប្រវត្តិមុន ២០១៥");
+      add("Sentinel-1 រ៉ាដា (~១០ ម · ៦ ទៅ ១២ ថ្ងៃ)", c === "wet" ? 2 : 1, c === "wet" ? "ឆ្លងកាត់ពពក ដូច្នេះសមស្របបំផុតក្នុងរដូវវស្សា" : "ប្រើជាជំនួយ ពេលរូបភាពអុបទិកខ្វះ");
+      add("MODIS · VIIRS (២៥០ ម ដល់ ១ គម · ប្រចាំថ្ងៃ)", o >= 250 ? 2 : 0, o >= 250 ? "ល្អសម្រាប់តំបន់ធំ និងការតាមដានប្រចាំថ្ងៃ" : "ក្រឡាធំពេកសម្រាប់វត្ថុនេះ");
+      add("រូបភាពពាណិជ្ជកម្ម (០,៣ ទៅ ៣ ម)", b === "paid" && o < 15 ? 2 : b === "paid" ? 1 : 0,
+        b === "free" ? "ត្រូវការថវិកា" : o < 15 ? "ចាំបាច់សម្រាប់វត្ថុតូចបែបនេះ" : "អាចប្រើ តែថ្លៃដោយឥតប្រយោជន៍ច្រើន");
+      const icon = ["✗", "⚠", "✓"], col = ["#c62828", "#f57f17", "#2e7d32"];
+      el.querySelector(".ch-out").innerHTML = rows.sort((a, b2) => b2[1] - a[1])
+        .map(([n, ok, why]) => `<div style="margin:.25em 0"><b style="color:${col[ok]}">${icon[ok]}</b> <b>${n}</b> · <span style="color:#555">${why}</span></div>`).join("") +
+        `<span class="sim-hint">ការជ្រើសពិតត្រូវពិចារណាផងដែរ៖ ជំនាញក្រុមការងារ · ពេលវេលាដំណើរការ · និងតម្រូវការភាពត្រឹមត្រូវ។</span>`;
+    };
+    el.querySelectorAll("select").forEach((x) => x.addEventListener("change", draw)); draw();
+  };
+
+  /* ---------- L7 · DN to reflectance, haze and correction ---------- */
+  window.EXTRA_SIMS["rs-correction"] = async (el) => {
+    const S = await loadScene();
+    const { cv, ctx, out, q } = shell(el, "ពី DN ទៅការឆ្លុះបញ្ចាំងផ្ទៃដី",
+      `<label>អ័ព្ទ (ពន្លឺផ្លូវ) <b class="co-hv"></b> <input type="range" class="co-h" min="0" max="60" value="25"></label>
+       <label>មុំព្រះអាទិត្យពីកំពូល <b class="co-zv"></b> <input type="range" class="co-z" min="10" max="60" value="30"></label>
+       <label><input type="checkbox" class="co-c"> អនុវត្តការកែតម្រូវ (DOS)</label>`);
+    const W = 640, H = 350;
+    const draw = () => {
+      fit(cv, ctx, W, H);
+      const haze = +q(".co-h").value / 1000, zen = +q(".co-z").value, corr = q(".co-c").checked;
+      q(".co-hv").textContent = kh(+q(".co-h").value); q(".co-zv").textContent = kh(zen) + "°";
+      const cosz = Math.cos((zen * Math.PI) / 180);
+      // path radiance decreases with wavelength (Rayleigh-ish): B2 strongest
+      const pathFor = [1.0, 0.72, 0.5, 0.22, 0.07, 0.04].map((f) => haze * f);
+      const n = S.n, img = ctx.createImageData(n, n);
+      const bandVals = [2, 1, 0].map((b) => new Float32Array(n * n));
+      for (let i = 0; i < n * n; i++) [2, 1, 0].forEach((b, k) => {
+        let r = refl(S, b, i) * cosz + pathFor[b];                 // simulated TOA
+        if (corr) r = Math.max(0, (r - pathFor[b]) / cosz);         // dark-object subtraction + sun correction
+        bandVals[k][i] = r; });
+      const lo = 0, hi = 0.45;
+      for (let i = 0; i < n * n; i++) { const o = i * 4;
+        for (let k = 0; k < 3; k++) img.data[o + k] = clamp(((bandVals[k][i] - lo) / (hi - lo)) * 255, 0, 255);
+        img.data[o + 3] = 255; }
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+      putScaled(ctx, img, 12, 18, 290);
+      // histogram of band B4 (red)
+      const hx = 330, hy = 40, hw = 290, hh = 150, bins = 40, cnt = new Array(bins).fill(0);
+      for (let i = 0; i < n * n; i++) cnt[clamp(Math.floor((bandVals[0][i] / 0.45) * bins), 0, bins - 1)]++;
+      const cmax = Math.max(...cnt);
+      ctx.strokeStyle = "#999"; ctx.strokeRect(hx, hy, hw, hh);
+      cnt.forEach((c, i) => { const h2 = (c / cmax) * (hh - 6); ctx.fillStyle = "#c62828";
+        ctx.fillRect(hx + (hw * i) / bins + 1, hy + hh - h2, hw / bins - 2, h2); });
+      ctx.font = `11px ${font()}`; ctx.fillStyle = "#555";
+      ctx.fillText("អ៊ីស្តូក្រាមនៃក្រុមរលកក្រហម", hx, hy - 8);
+      ctx.fillText("០", hx, hy + hh + 14); ctx.fillText("០,៤៥", hx + hw - 24, hy + hh + 14);
+      const minv = Math.min(...bandVals[0]), water = bandVals[0][Math.floor(n * 0.62) * n + Math.floor(n * 0.5)];
+      const idxOf = (cls) => { for (let i = 0; i < n * n; i++) if (S.cls[i] === cls) return i; return 0; };
+      const iw = idxOf(0), ifo = idxOf(1);
+      const ndviRaw = (() => { const nir = refl(S, 3, ifo) * cosz + haze * 0.1, red = refl(S, 2, ifo) * cosz + haze * 0.5;
+        return (nir - red) / (nir + red); })();
+      const ndviCorr = (() => { const nir = refl(S, 3, ifo), red = refl(S, 2, ifo); return (nir - red) / (nir + red); })();
+      out.innerHTML = `តម្លៃអប្បបរមាក្នុងក្រុមរលកក្រហម៖ <b>${fmtN(minv * 100, 1)}%</b> ` +
+        (corr ? "(ក្រោយកែតម្រូវ)" : "(មានពន្លឺផ្លូវ)") +
+        `<br>NDVI នៃព្រៃឈើ៖ មុនកែ <b>${fmtN(ndviRaw, 2)}</b> · ក្រោយកែ <b>${fmtN(ndviCorr, 2)}</b>` +
+        `<br><span class="sim-hint">ពន្លឺផ្លូវបន្ថែមតម្លៃថេរ ជាពិសេសក្នុងក្រុមរលកខ្លី ដូច្នេះអ៊ីស្តូក្រាមរំកិលទៅស្ដាំ ហើយ NDVI ធ្លាក់។ វិធី Dark Object Subtraction សន្មតថាក្រឡាងងឹតបំផុត (ទឹកជ្រៅ ឬស្រមោល) គួរមានតម្លៃជិតសូន្យ ហើយដកតម្លៃនោះចេញពីគ្រប់ក្រឡា។ ការបែងចែកនឹង cos(មុំព្រះអាទិត្យ) កែឥទ្ធិពលនៃមុំបំភ្លឺ។</span>`;
+    };
+    el.querySelectorAll("input").forEach((x) => x.addEventListener("input", draw)); draw();
+    window.addEventListener("resize", () => el.isConnected && draw());
+  };
 })();
