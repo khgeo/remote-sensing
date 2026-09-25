@@ -1166,36 +1166,62 @@
   window.EXTRA_SIMS["rs-photoscale"] = (el) => {
     const { cv, ctx, out, q } = shell(el, "មាត្រដ្ឋានរូបថត និងការវាស់កម្ពស់វត្ថុ",
       `<label>ប្រវែងកំណុំ f (មម) <b class="ps-fv"></b> <input type="range" class="ps-f" min="50" max="305" value="152"></label>
-       <label>កម្ពស់ហោះ H (ម) <b class="ps-Hv"></b> <input type="range" class="ps-H" min="300" max="5000" step="50" value="1830"></label>
+       <label>កម្ពស់ហោះ H (ម) <b class="ps-altv"></b> <input type="range" class="ps-alt" min="300" max="5000" step="50" value="1830"></label>
        <label>កម្ពស់ដីពីនីវ៉ូទឹកសមុទ្រ (ម) <b class="ps-tv"></b> <input type="range" class="ps-t" min="0" max="600" step="10" value="0"></label>
        <label>កម្ពស់អគារ h (ម) <b class="ps-hv"></b> <input type="range" class="ps-h" min="0" max="200" step="5" value="60"></label>
-       <label>ចម្ងាយពីចំណុចកណ្ដាល r (មម) <b class="ps-rv"></b> <input type="range" class="ps-r" min="5" max="110" value="80"></label>`);
-    const W = 640, H0 = 330;
+       <label>ចម្ងាយពីចំណុចកណ្ដាល r (មម) <b class="ps-rv"></b> <input type="range" class="ps-r" min="15" max="110" value="80"></label>`);
+    const W = 640, H0 = 350;
     const draw = () => {
       fit(cv, ctx, W, H0);
-      const f = +q(".ps-f").value, Hf = +q(".ps-H").value, ht = +q(".ps-t").value, h = +q(".ps-h").value, r = +q(".ps-r").value;
-      q(".ps-fv").textContent = kh(f); q(".ps-Hv").textContent = fmtN(Hf); q(".ps-tv").textContent = kh(ht); q(".ps-hv").textContent = kh(h); q(".ps-rv").textContent = kh(r);
+      const f = +q(".ps-f").value, Hf = +q(".ps-alt").value, ht = +q(".ps-t").value, h = +q(".ps-h").value, r = +q(".ps-r").value;
+      q(".ps-fv").textContent = kh(f); q(".ps-altv").textContent = fmtN(Hf); q(".ps-tv").textContent = kh(ht); q(".ps-hv").textContent = kh(h); q(".ps-rv").textContent = kh(r);
       const Hg = Math.max(10, Hf - ht);                 // flying height above the local ground
       const S = (Hg * 1000) / f;                         // scale denominator
       const d = (r * h) / Hg;                            // relief displacement on the photo (mm)
       const dGround = (d / 1000) * S;                    // same displacement expressed on the ground (m)
       ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H0);
       // schematic: exposure station, lens rays, ground, building
-      const gx0 = 40, gx1 = 600, gy = 284, camX = 200, camY = 36;
+      const gx0 = 40, gx1 = 620, gy = 284, camX = 170, camY = 30;
       ctx.fillStyle = "#e8f5e9"; ctx.fillRect(gx0, gy, gx1 - gx0, 24); ctx.strokeStyle = "#8d6e63"; ctx.beginPath(); ctx.moveTo(gx0, gy); ctx.lineTo(gx1, gy); ctx.stroke();
       ctx.fillStyle = "#37474f"; ctx.beginPath(); ctx.arc(camX, camY, 6, 0, 7); ctx.fill();
       ctx.font = `11px ${font()}`; ctx.fillText("ចំណុចថត L", camX + 10, camY + 4);
       ctx.strokeStyle = "#90a4ae"; ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(camX, camY); ctx.lineTo(camX, gy); ctx.stroke(); ctx.setLineDash([]);
-      ctx.fillStyle = "#555"; ctx.fillText("ចំណុចមេ (PP)", camX - 40, gy + 20);
-      // building at horizontal distance proportional to r
-      const bx = camX + (r / 110) * 330, bh = (h / 200) * 150;
-      ctx.fillStyle = "#b0bec5"; ctx.fillRect(bx - 10, gy - bh, 20, bh); ctx.strokeStyle = "#455a64"; ctx.strokeRect(bx - 10, gy - bh, 20, bh);
-      // ray through the building top reaching the ground: apparent position further away
-      const k = (gy - camY) / Math.max(1, gy - bh - camY), topGroundX = camX + (bx - camX) * k;
-      ctx.strokeStyle = "#e65100"; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(camX, camY); ctx.lineTo(Math.min(gx1, topGroundX), gy); ctx.stroke(); ctx.lineWidth = 1;
-      ctx.strokeStyle = "#1565c0"; ctx.beginPath(); ctx.moveTo(camX, camY); ctx.lineTo(bx, gy); ctx.stroke();
-      ctx.strokeStyle = "#c62828"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(bx, gy + 4); ctx.lineTo(Math.min(gx1, topGroundX), gy + 4); ctx.stroke(); ctx.lineWidth = 1;
-      ctx.fillStyle = "#c62828"; ctx.fillText("ការផ្លាស់ទីដោយសារកម្ពស់", Math.min(gx1 - 150, bx), gy + 20);
+      ctx.fillStyle = "#555"; ctx.font = `11px ${font()}`; ctx.fillText("PP", camX + 4, gy - 4);
+      // textbook geometry (Jensen): L = exposure station, positive plane at f below L,
+      // A = building base, B = building top on the same vertical edge, B' = where ray L→B meets the datum
+      const fpx = 62, yp = camY + fpx;                           // positive (print) plane
+      const bx = camX + 30 + (r / 110) * 180, bh = (h / 200) * 120;   // building left edge x, drawn height
+      const Ay = gy, By = gy - bh;
+      const aX = camX + ((bx - camX) * fpx) / (Ay - camY);       // image of A on the positive
+      const bX = camX + ((bx - camX) * fpx) / Math.max(1, By - camY); // image of B
+      const Bp = camX + ((bx - camX) * (gy - camY)) / Math.max(1, By - camY); // B' on the datum
+      // positive plane
+      ctx.strokeStyle = "#555"; ctx.beginPath(); ctx.moveTo(camX - 30, yp); ctx.lineTo(camX + 190, yp); ctx.stroke();
+      ctx.font = `11px ${font()}`; ctx.fillStyle = "#555"; ctx.textAlign = "right"; ctx.fillText("ផ្ទៃរូបថត", camX - 36, yp + 4); ctx.textAlign = "left";
+      // building (A–B is its left edge)
+      ctx.fillStyle = "#b0bec5"; ctx.fillRect(bx, By, 26, bh); ctx.strokeStyle = "#455a64"; ctx.strokeRect(bx, By, 26, bh);
+      // rays: L→A (blue) and L→B→B' (orange); both pass exactly through the corners
+      ctx.lineWidth = 1.4;
+      ctx.strokeStyle = "#1565c0"; ctx.beginPath(); ctx.moveTo(camX, camY); ctx.lineTo(bx, Ay); ctx.stroke();
+      ctx.strokeStyle = "#e65100"; ctx.beginPath(); ctx.moveTo(camX, camY); ctx.lineTo(Bp, gy); ctx.stroke(); ctx.lineWidth = 1;
+      // points
+      const dot = (x, y, c) => { ctx.beginPath(); ctx.arc(x, y, 3.2, 0, 7); ctx.fillStyle = c; ctx.fill(); };
+      dot(camX, yp, "#555"); dot(aX, yp, "#1565c0"); dot(bX, yp, "#e65100"); dot(bx, Ay, "#1565c0"); dot(bx, By, "#e65100"); dot(Bp, gy, "#e65100");
+      ctx.font = `italic 12px serif`; ctx.fillStyle = "#333";
+      ctx.fillText("o", camX - 12, yp + 14); ctx.fillText("a", aX - 3, yp + 14); ctx.fillText("b", bX + 2, yp - 6);
+      ctx.fillText("A", bx - 12, Ay - 4); ctx.fillText("B", bx - 12, By + 4); ctx.fillText("B′", Math.max(Bp + 4, bx + 30), gy - 6); ctx.fillText("O", camX - 14, gy - 4);
+      // dimensions: d (a→b) and r (o→b) on the positive; D (A→B′) and R (O→B′) on the datum; h beside the building; H left of L
+      const dim = (x1, y1, x2, y2, t, c, dx = 0, dy = 0) => { ctx.strokeStyle = c; ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+        [[x1, y1, x2, y2], [x2, y2, x1, y1]].forEach(([p1, q1, p2, q2]) => { const an = Math.atan2(q2 - q1, p2 - p1); ctx.beginPath(); ctx.moveTo(p1, q1);
+          ctx.lineTo(p1 + 6 * Math.cos(an + 0.4), q1 + 6 * Math.sin(an + 0.4)); ctx.lineTo(p1 + 6 * Math.cos(an - 0.4), q1 + 6 * Math.sin(an - 0.4)); ctx.closePath(); ctx.fill(); });
+        ctx.font = `italic 12px serif`; ctx.fillText(t, (x1 + x2) / 2 + dx, (y1 + y2) / 2 + dy); };
+      dim(aX, yp - 16, bX, yp - 16, "d", "#c62828", -3, -5);
+      dim(camX, yp - 30, bX, yp - 30, "r", "#333", -3, -5);
+      dim(bx, gy + 12, Bp, gy + 12, "D", "#c62828", -4, 16);
+      dim(camX, gy + 34, Bp, gy + 34, "R", "#333", -4, 16);
+      dim(bx + 40, By, bx + 40, Ay, "h", "#2e7d32", 6, 4);
+      dim(camX - 90, camY, camX - 90, gy, "H", "#333", -14, 4);
+      ctx.strokeStyle = "#ccc"; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(bx + 26, By); ctx.lineTo(bx + 46, By); ctx.stroke(); ctx.setLineDash([]);
       // equations panel
       ctx.fillStyle = "rgba(255,255,255,.92)"; ctx.fillRect(352, 22, 280, 98); ctx.strokeStyle = "#e0e0e0"; ctx.strokeRect(352, 22, 280, 98);
       ctx.fillStyle = "#333"; ctx.font = `12px ${font()}`;
