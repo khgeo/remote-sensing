@@ -32,7 +32,10 @@ import cover
 # ---------------------------------------------------------------- nav
 class L(yaml.SafeLoader): pass
 L.add_multi_constructor("", lambda l, s, n: None)
-NAV = yaml.load(open(os.path.join(ROOT, "mkdocs.yml"), encoding="utf-8"), Loader=L)["nav"]
+CFG = yaml.load(open(os.path.join(ROOT, "mkdocs.yml"), encoding="utf-8"), Loader=L)
+NAV = CFG["nav"]
+LOCAL = lambda xs: ["/" + x.lstrip("/") for x in (xs or []) if isinstance(x, str) and not x.startswith("http")]
+EXTRA_CSS, EXTRA_JS = LOCAL(CFG.get("extra_css")), LOCAL(CFG.get("extra_javascript"))
 
 def flatten():
     """[(kind, title, md_path, part_title)] in reading order; index.md skipped."""
@@ -40,14 +43,21 @@ def flatten():
     for entry in NAV:
         (t, v), = entry.items()
         if isinstance(v, str):
-            if v != "index.md": items.append(("page", t, v, None))
+            if v != "index.md" and not v.startswith("slides/"): items.append(("page", t, v, None))
         else:
             items.append(("divider", t, None, None))
             for sub in v:
                 (st, sv), = sub.items(); items.append(("page", st, sv, t))
     return items
 
-def url_of(md): return "/" + (md[:-3] + "/" if not md.endswith("index.md") else md[:-8])
+def html_file(md):
+    """Built file for a page: works with use_directory_urls on (x/index.html) or off (x.html)."""
+    stem = md[:-3]
+    for cand in (stem + ".html", os.path.join(stem, "index.html")) if not md.endswith("index.md") else (stem + ".html",):
+        if os.path.exists(os.path.join(SITE, cand)): return cand
+    raise FileNotFoundError(md)
+def url_of(md): return "/" + html_file(md).replace(os.sep, "/").replace("index.html", "")
+def norm(path): return re.sub(r"(/index)?\.html$|/$", "", path)
 def slug_of(md): return re.sub(r"[^a-z0-9]+", "-", md[:-3].lower()).strip("-")
 
 # ---------------------------------------------------------------- qr
@@ -58,7 +68,7 @@ def qr_svg(url, size=78):
 
 # ---------------------------------------------------------------- page extraction
 def extract(md, pages_in_book):
-    path = os.path.join(SITE, url_of(md).strip("/"), "index.html")
+    path = os.path.join(SITE, html_file(md))
     soup = BeautifulSoup(open(path, encoding="utf-8").read(), "html.parser")
     art = soup.select_one("article.md-content__inner")
     for sel in ["a.md-content__button", "a.headerlink", "aside.md-source-file", ".md-source-file", "form.md-feedback"]:
@@ -70,7 +80,7 @@ def extract(md, pages_in_book):
         if h.startswith("#"): a["href"] = f"#{slug}--{h[1:]}"; continue
         u = urlparse(urljoin("http://x" + base, h))
         if u.netloc != "x": continue
-        target = next((m for m in pages_in_book if url_of(m) == u.path), None)
+        target = next((m for m in pages_in_book if norm(url_of(m)) == norm(u.path)), None)
         if target: a["href"] = f"#{slug_of(target)}" + (f"--{u.fragment}" if u.fragment else "")
         else: a["href"] = ONLINE.rstrip("/") + u.path
     for tag, attr in (("img", "src"), ("source", "src")):
@@ -124,6 +134,8 @@ body { font-size: 10.5pt; }
 .print-qr { display: flex; gap: 10pt; align-items: center; border: 1px dashed #bcaaa4; border-radius: 6px; padding: 6pt 10pt; font-size: 8.5pt; color: #444; margin: -.4em 0 1em; background: #faf6f4; }
 .print-qr .u { font-family: monospace; font-size: 8pt; color: #5d4037; }
 .print-answer { margin-top: .4em; color: #777; }
+.md-typeset .admonition-title, .md-typeset summary { padding-left: 2.6em !important; }
+.md-typeset .admonition-title::before, .md-typeset summary::before { left: .75em !important; top: 50% !important; transform: translateY(-50%); width: 1.15em !important; height: 1.15em !important; }
 .self-check .sc-row, .map-tasks, .attr-table, .leaflet-control-zoom, .leaflet-control-layers, .leaflet-control-attribution, .mq-score, .mq-hint, .mt-restart, .sim-btn, .md-button { display: none !important; }
 .ch-bar { transition: none !important; width: var(--w) !important; }
 .lab-map { height: 380px !important; }
@@ -194,19 +206,20 @@ async def render(chrome_path=None):
     items = flatten(); pages = [p for k, _, p, _ in items if k == "page"]
     dfont = khmer_digit_font()
     css_links = [f"/assets/stylesheets/{f}" for f in sorted(os.listdir(os.path.join(SITE, "assets", "stylesheets"))) if f.endswith(".css")]
-    extra = ["/assets/css/khmer.css", "/assets/css/workbook.css", "/assets/css/lesson-sims.css"]
+    extra = EXTRA_CSS
     leaflet_css = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"; leaflet_js = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"
     if os.path.exists(os.path.join(SITE, "vendor", "leaflet.js")): leaflet_css, leaflet_js = "/vendor/leaflet.css", "/vendor/leaflet.js"
     body = []
     for idx, (kind, title, md, part) in enumerate(items):
         if kind == "divider":
             members = [t for k, t, p, pt in items if pt == title]
-            body.append(f'<section class="divider"><span class="mark">ZZ|div{idx}|ZZ</span><div class="kicker">ផ្នែក</div><h1>{html.escape(title)}</h1><div class="rule"></div><ul>{"".join(f"<li>{html.escape(m)}</li>" for m in members)}</ul></section>')
+            body.append(f'<section class="divider"><span class="mark">ZZ|div{idx}|ZZ</span><h1>{html.escape(title)}</h1><div class="rule"></div><ul>{"".join(f"<li>{html.escape(m)}</li>" for m in members)}</ul></section>')
         else:
             body.append(f'<section class="book-section md-typeset" id="{slug_of(md)}"><span class="mark">ZZ|{slug_of(md)}|ZZ</span>{extract(md, pages)}</section>')
     book_dir = os.path.join(SITE, "print", "book"); os.makedirs(book_dir, exist_ok=True)
     head = "".join(f'<link rel="stylesheet" href="{h}">' for h in css_links + extra + [leaflet_css])
-    doc = f'<!doctype html><html lang="km"><head><meta charset="utf-8">{head}<style>{PRINT_CSS}</style></head><body data-md-color-scheme="default" data-md-color-primary="brown" data-md-color-accent="deep-orange"><div class="md-typeset">{"".join(body)}</div><script src="{leaflet_js}"></script><script src="/assets/js/rs-sims.js"></script><script src="/assets/js/lesson-sims.js"></script><script src="/assets/js/workbook.js"></script></body></html>'
+    scripts = "".join('<script src="%s"></script>' % x for x in EXTRA_JS)
+    doc = f'<!doctype html><html lang="km"><head><meta charset="utf-8">{head}<style>{PRINT_CSS}</style></head><body data-md-color-scheme="default" data-md-color-primary="brown" data-md-color-accent="deep-orange"><div class="md-typeset">{"".join(body)}</div><script src="{leaflet_js}"></script>{scripts}</body></html>'
     open(os.path.join(book_dir, "index.html"), "w", encoding="utf-8").write(doc)
     cover.write(OUT)
     httpd = serve()
