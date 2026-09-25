@@ -616,7 +616,7 @@
   window.EXTRA_SIMS["rs-pansharpen"] = async (el) => {
     const S = await loadScene();
     const { cv, ctx, out, q } = shell(el, "គោលការណ៍នៃ Pan-sharpening",
-      `<label><input type="checkbox" class="ps-s" checked> បង្ហាញកំណែបុនចម</label>`);
+      `<label><input type="checkbox" class="ps-s" checked> បង្ហាញលទ្ធផល Pan-sharpening</label>`);
     const W = 640, H = 300;
     const draw = () => {
       fit(cv, ctx, W, H); const sharp = q(".ps-s").checked;
@@ -629,18 +629,18 @@
       for (let i = 0; i < n * n; i++) pan[i] = (refl(S, 0, i) + refl(S, 1, i) + refl(S, 2, i)) / 3;
       const panImg = ctx.createImageData(n, n);
       for (let i = 0; i < n * n; i++) { const v = clamp(pan[i] * 255 * 2.2, 0, 255); const o = i * 4; panImg.data[o] = v; panImg.data[o + 1] = v; panImg.data[o + 2] = v; panImg.data[o + 3] = 255; }
-      putScaled(ctx, panImg, 222, 18, 190); ctx.fillText("Panchromatic (គំរូ ១០ ម)", 222, 224);
+      putScaled(ctx, panImg, 222, 18, 190); ctx.fillText("ប៉ង់ក្រូម៉ាទិច (គំរូ ១០ ម)", 222, 224);
       if (sharp) {
         const outImg = ctx.createImageData(n, n);
         const coarseAt = (i) => { const y = Math.floor(i / n), x = i % n, cs = 40, cx2 = Math.floor((x / n) * cs), cy2 = Math.floor((y / n) * cs);
           const ci = cy2 * cs + cx2, o2 = ci * 4; return [coarse.data[o2] / 255, coarse.data[o2 + 1] / 255, coarse.data[o2 + 2] / 255]; };
         for (let i = 0; i < n * n; i++) { const [r, g, b] = coarseAt(i), o = i * 4, ratio = pan[i] / Math.max(0.02, (r + g + b) / 3 / 2.2);
           outImg.data[o] = clamp(r * 2.2 * ratio * 255, 0, 255); outImg.data[o + 1] = clamp(g * 2.2 * ratio * 255, 0, 255); outImg.data[o + 2] = clamp(b * 2.2 * ratio * 255, 0, 255); outImg.data[o + 3] = 255; }
-        putScaled(ctx, outImg, 430, 18, 190); ctx.fillText("លទ្ធផលបុនចម (ពណ៌ + លម្អិត)", 430, 224);
+        putScaled(ctx, outImg, 430, 18, 190); ctx.fillText("លទ្ធផល Pan-sharpening (ពណ៌ + លម្អិត)", 430, 224);
       }
       out.innerHTML = sharp
-        ? "Pan-sharpening បញ្ចូលលម្អិតលំហពី panchromatic ចូលទៅក្នុងពណ៌ពីក្រុមរលកគំរូធំ។ លទ្ធផលមើលទៅមានលម្អិត ប៉ុន្តែ <b>ព័ត៌មានពណ៌ពិតនៅតែមកពីក្រុមរលកគំរូធំ</b> មិនមែនកើនឡើងទេ។"
-        : "សង្កេតភាពខុសគ្នារវាងក្រុមរលកពណ៌ (ព័ត៌មានច្រើន ប៉ុន្តែព្រិល) និង panchromatic (លម្អិតច្រើន ប៉ុន្តែគ្មានពណ៌)។ ធីកខាងលើ ដើម្បីមើលការបញ្ចូលគ្នា។";
+        ? "Pan-sharpening បញ្ចូលលម្អិតលំហពីប៉ង់ក្រូម៉ាទិច (panchromatic) ចូលទៅក្នុងពណ៌ពីក្រុមរលកគំរូធំ។ លទ្ធផលមើលទៅមានលម្អិត ប៉ុន្តែ <b>ព័ត៌មានពណ៌ពិតនៅតែមកពីក្រុមរលកគំរូធំ</b> មិនមែនកើនឡើងទេ។"
+        : "សង្កេតភាពខុសគ្នារវាងក្រុមរលកពណ៌ (ព័ត៌មានច្រើន ប៉ុន្តែព្រិល) និងប៉ង់ក្រូម៉ាទិច (លម្អិតច្រើន ប៉ុន្តែគ្មានពណ៌)។ ធីកខាងលើ ដើម្បីមើលការបញ្ចូលគ្នា។";
     };
     q(".ps-s").addEventListener("change", draw); draw();
     window.addEventListener("resize", () => el.isConnected && draw());
@@ -1167,7 +1167,7 @@
     const { cv, ctx, out, q } = shell(el, "មាត្រដ្ឋានរូបថត និងការវាស់កម្ពស់វត្ថុ",
       `<label>ប្រវែងកំណុំ f (មម) <b class="ps-fv"></b> <input type="range" class="ps-f" min="50" max="305" value="152"></label>
        <label>កម្ពស់ហោះ H (ម) <b class="ps-Hv"></b> <input type="range" class="ps-H" min="300" max="5000" step="50" value="1830"></label>
-       <label>កម្ពស់ដី h<sub>ដី</sub> (ម) <b class="ps-tv"></b> <input type="range" class="ps-t" min="0" max="600" step="10" value="0"></label>
+       <label>កម្ពស់ដីពីនីវ៉ូទឹកសមុទ្រ (ម) <b class="ps-tv"></b> <input type="range" class="ps-t" min="0" max="600" step="10" value="0"></label>
        <label>កម្ពស់អគារ h (ម) <b class="ps-hv"></b> <input type="range" class="ps-h" min="0" max="200" step="5" value="60"></label>
        <label>ចម្ងាយពីចំណុចកណ្ដាល r (មម) <b class="ps-rv"></b> <input type="range" class="ps-r" min="5" max="110" value="80"></label>`);
     const W = 640, H0 = 330;
@@ -1181,12 +1181,12 @@
       const dGround = (d / 1000) * S;                    // same displacement expressed on the ground (m)
       ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H0);
       // schematic: exposure station, lens rays, ground, building
-      const gx0 = 40, gx1 = 600, gy = 290, camX = 200, camY = 36;
+      const gx0 = 40, gx1 = 600, gy = 284, camX = 200, camY = 36;
       ctx.fillStyle = "#e8f5e9"; ctx.fillRect(gx0, gy, gx1 - gx0, 24); ctx.strokeStyle = "#8d6e63"; ctx.beginPath(); ctx.moveTo(gx0, gy); ctx.lineTo(gx1, gy); ctx.stroke();
       ctx.fillStyle = "#37474f"; ctx.beginPath(); ctx.arc(camX, camY, 6, 0, 7); ctx.fill();
       ctx.font = `11px ${font()}`; ctx.fillText("ចំណុចថត L", camX + 10, camY + 4);
       ctx.strokeStyle = "#90a4ae"; ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(camX, camY); ctx.lineTo(camX, gy); ctx.stroke(); ctx.setLineDash([]);
-      ctx.fillStyle = "#555"; ctx.fillText("ចំណុចមេ (PP)", camX - 40, gy + 18);
+      ctx.fillStyle = "#555"; ctx.fillText("ចំណុចមេ (PP)", camX - 40, gy + 20);
       // building at horizontal distance proportional to r
       const bx = camX + (r / 110) * 330, bh = (h / 200) * 150;
       ctx.fillStyle = "#b0bec5"; ctx.fillRect(bx - 10, gy - bh, 20, bh); ctx.strokeStyle = "#455a64"; ctx.strokeRect(bx - 10, gy - bh, 20, bh);
@@ -1195,8 +1195,9 @@
       ctx.strokeStyle = "#e65100"; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(camX, camY); ctx.lineTo(Math.min(gx1, topGroundX), gy); ctx.stroke(); ctx.lineWidth = 1;
       ctx.strokeStyle = "#1565c0"; ctx.beginPath(); ctx.moveTo(camX, camY); ctx.lineTo(bx, gy); ctx.stroke();
       ctx.strokeStyle = "#c62828"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(bx, gy + 4); ctx.lineTo(Math.min(gx1, topGroundX), gy + 4); ctx.stroke(); ctx.lineWidth = 1;
-      ctx.fillStyle = "#c62828"; ctx.fillText("ការផ្លាស់ទីដោយសារកម្ពស់", Math.min(gx1 - 130, bx + 6), gy - 6 - bh);
+      ctx.fillStyle = "#c62828"; ctx.fillText("ការផ្លាស់ទីដោយសារកម្ពស់", Math.min(gx1 - 150, bx), gy + 20);
       // equations panel
+      ctx.fillStyle = "rgba(255,255,255,.92)"; ctx.fillRect(352, 22, 280, 98); ctx.strokeStyle = "#e0e0e0"; ctx.strokeRect(352, 22, 280, 98);
       ctx.fillStyle = "#333"; ctx.font = `12px ${font()}`;
       ctx.fillText(`s = f ÷ (H − hដី) = ${kh(f)} មម ÷ ${fmtN(Hg)} ម`, 360, 40);
       ctx.fillText(`មាត្រដ្ឋាន ≈ ១ : ${fmtN(Math.round(S / 10) * 10)}`, 360, 60);
