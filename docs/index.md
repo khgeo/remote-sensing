@@ -6,6 +6,9 @@
 
 សៀវភៅនេះជាឯកសារបង្រៀនសម្រាប់មុខវិជ្ជា **ការយកព័ត៌មានពីចម្ងាយ (Remote Sensing)** កម្រិតបរិញ្ញាបត្រ ឆ្នាំទី៣ ឆមាសទី១ ដេប៉ាតឺម៉ង់ភូមិវិទ្យា និងរៀបចំដែនដី។ វាមាន **១៥ មេរៀនទ្រឹស្ដី** (៣ ម៉ោងក្នុងមួយមេរៀន) និង **សៀវភៅអនុវត្ត ១៥ លំហាត់** លើ **QGIS** ដោយប្រើរូបភាព **Sentinel-2** និង **Landsat** ឥតគិតថ្លៃលើតំបន់កម្ពុជា។
 
+[:material-file-pdf-box: ទាញយកសៀវភៅ PDF](https://github.com/khgeo/remote-sensing/releases/latest/download/fundamentals-of-remote-sensing.pdf){ .md-button .md-button--primary }
+[:material-database: ទិន្នន័យវគ្គ RS_Data.zip](https://github.com/khgeo/remote-sensing/releases/latest/download/RS_Data.zip){ .md-button }
+
 ## ស៊េរីសៀវភៅទាំង ៤
 
 | សៀវភៅ | ចំណងជើង | ឆ្នាំ/ឆមាស |

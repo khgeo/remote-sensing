@@ -48,7 +48,7 @@
 .mc-thumbs span { font-size: 0.65rem; }
 .ft-table td:last-child { max-width: 28em; }
 @media screen and (max-width: 700px) {
-  .sim-body { flex-direction: column; } .vd-list, .gr-tab { flex: 1 1 auto; max-height: 200px; width: 100%; }
+  .sim-body { flex-direction: column; } .sim-canvas-wrap { align-self: stretch; width: 100%; } .vd-list, .gr-tab { flex: 1 1 auto; max-height: 200px; width: 100%; }
   .mc-thumbs { flex-direction: row; flex-wrap: wrap; } .mc-thumbs canvas { width: 70px; }
   .jn-grid { grid-template-columns: 1fr; } .ls-stage { height: 320px; }
 }

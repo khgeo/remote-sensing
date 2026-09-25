@@ -3,7 +3,7 @@ Build a print-ready PDF of the whole book.
 
     pip install -r tools/pdf/requirements.txt && playwright install chromium
     mkdocs build
-    python tools/pdf/build_book.py            # -> book/fundamentals-of-gis.pdf
+    python tools/pdf/build_book.py            # -> book/fundamentals-of-remote-sensing.pdf
 
 Needs the Khmer fonts Battambang, Siemreap and Moul installed on the machine
 (Google Fonts, SIL OFL). Interactive parts are printed in their initial state
@@ -21,8 +21,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 SITE = os.path.join(ROOT, "site")
 OUT = os.path.join(ROOT, "book")
-ONLINE = "https://khgeo.github.io/cartography/"
-TITLE = "ផែនទីវិទ្យា"
+ONLINE = "https://khgeo.github.io/remote-sensing/"
+TITLE = "មូលដ្ឋានគ្រឹះនៃការយកព័ត៌មានពីចម្ងាយ"
 PORT = 8765
 KM = "០១២៣៤៥៦៧៨៩"
 kh = lambda s: "".join(KM[int(c)] if c.isdigit() else c for c in str(s))
@@ -107,22 +107,22 @@ html, body { background: #fff !important; }
 body { font-size: 10.5pt; }
 .md-typeset { font-size: 10.5pt !important; line-height: 1.75; }
 .book-section { break-before: page; }
-.book-section > article > h1:first-of-type { font-size: 21pt; color: #00695c; border-bottom: 3px solid #ff7043; padding-bottom: 6pt; margin-top: 0; }
-.md-typeset h2 { font-size: 15pt; color: #00695c; break-after: avoid; margin-top: 1.4em; }
+.book-section > article > h1:first-of-type { font-size: 21pt; color: #5d4037; border-bottom: 3px solid #ff7043; padding-bottom: 6pt; margin-top: 0; }
+.md-typeset h2 { font-size: 15pt; color: #5d4037; break-after: avoid; margin-top: 1.4em; }
 .md-typeset h3 { font-size: 12.5pt; break-after: avoid; }
 .md-typeset h4 { break-after: avoid; }
 .md-typeset figure, .md-typeset table, .admonition, .lab-chart, .sim, .lab-map, .match-quiz, .raster-sim, .print-qr, .self-check, pre { break-inside: avoid; }
 .md-typeset table:not([class]) { font-size: 9pt; display: table; width: 100%; }
 .md-typeset figure { margin: 1em 0; } .md-typeset figcaption { font-size: 9pt; color: #555; }
-.md-typeset a { color: #00695c; text-decoration: none; }
+.md-typeset a { color: #5d4037; text-decoration: none; }
 .divider { break-before: page; height: 245mm; display: flex; flex-direction: column; justify-content: center; }
 .divider .kicker { font-family: 'Battambang'; color: #ff7043; font-size: 14pt; letter-spacing: .05em; }
-.divider h1 { font-family: 'Moul', 'Battambang'; font-weight: 400; font-size: 26pt; color: #00493f; line-height: 1.6; margin: .3em 0; border: 0; }
+.divider h1 { font-family: 'Moul', 'Battambang'; font-weight: 400; font-size: 26pt; color: #3e2723; line-height: 1.6; margin: .3em 0; border: 0; }
 .divider .rule { width: 60mm; height: 4px; background: #ff7043; }
 .divider ul { font-family: 'Battambang'; color: #333; font-size: 12pt; margin-top: 2em; list-style: none; padding: 0; }
 .divider li { margin: .4em 0; }
-.print-qr { display: flex; gap: 10pt; align-items: center; border: 1px dashed #80cbc4; border-radius: 6px; padding: 6pt 10pt; font-size: 8.5pt; color: #444; margin: -.4em 0 1em; background: #f4fbfa; }
-.print-qr .u { font-family: monospace; font-size: 8pt; color: #00695c; }
+.print-qr { display: flex; gap: 10pt; align-items: center; border: 1px dashed #bcaaa4; border-radius: 6px; padding: 6pt 10pt; font-size: 8.5pt; color: #444; margin: -.4em 0 1em; background: #faf6f4; }
+.print-qr .u { font-family: monospace; font-size: 8pt; color: #5d4037; }
 .print-answer { margin-top: .4em; color: #777; }
 .self-check .sc-row, .map-tasks, .attr-table, .leaflet-control-zoom, .leaflet-control-layers, .leaflet-control-attribution, .mq-score, .mq-hint, .mt-restart, .sim-btn, .md-button { display: none !important; }
 .ch-bar { transition: none !important; width: var(--w) !important; }
@@ -147,36 +147,35 @@ def front_matter(toc):
 body {{ font-family: 'Siemreap','Battambang',sans-serif; font-size: 10.5pt; color: #222; }}
 .pg {{ break-after: page; height: 246mm; position: relative; overflow: hidden; }}
 .toc {{ break-before: page; }}
-.title h1 {{ font-family: 'Moul'; font-weight: 400; font-size: 30pt; color: #00493f; line-height: 1.7; margin: 45mm 0 4mm; }}
-.title .en {{ font-family: Georgia, serif; font-style: italic; font-size: 16pt; color: #00695c; }}
+.title h1 {{ font-family: 'Moul'; font-weight: 400; font-size: 30pt; color: #3e2723; line-height: 1.7; margin: 45mm 0 4mm; }}
+.title .en {{ font-family: Georgia, serif; font-style: italic; font-size: 16pt; color: #5d4037; }}
 .title .rule {{ width: 50mm; height: 4px; background: #ff7043; margin: 8mm 0; }}
 .title .au {{ font-family: Georgia, serif; font-size: 16pt; font-weight: 700; margin-top: 30mm; }}
 .title .meta {{ font-family: 'Battambang'; color: #555; margin-top: 3mm; }}
 .copy {{ font-size: 9.5pt; color: #444; position: absolute; bottom: 0; line-height: 1.9; }}
 .copy b {{ font-family: 'Battambang'; }}
-h2 {{ font-family: 'Battambang'; color: #00695c; font-size: 18pt; border-bottom: 3px solid #ff7043; padding-bottom: 4pt; }}
+h2 {{ font-family: 'Battambang'; color: #5d4037; font-size: 18pt; border-bottom: 3px solid #ff7043; padding-bottom: 4pt; }}
 .t-part, .t-page {{ display: flex; align-items: baseline; gap: 6pt; }}
-.t-part {{ font-family: 'Battambang'; font-weight: 700; color: #00695c; margin-top: 9pt; font-size: 11pt; }}
+.t-part {{ font-family: 'Battambang'; font-weight: 700; color: #5d4037; margin-top: 9pt; font-size: 11pt; }}
 .t-page {{ padding-left: 12pt; font-size: 10pt; line-height: 1.8; }}
 .dots {{ flex: 1; border-bottom: 1px dotted #aaa; transform: translateY(-3pt); }}
 .n {{ font-family: 'Battambang'; min-width: 18pt; text-align: right; }}
 .pref p {{ line-height: 1.9; text-align: justify; }}
 </style></head><body>
-<div class="pg title"><h1>ផែនទីវិទ្យា</h1><div class="en">Cartography</div><div class="rule"></div>
-<div class="meta">សៀវភៅទី១ នៃស៊េរីសៀវភៅ GIS និងការយកព័ត៌មានពីចម្ងាយ</div><div class="meta">សម្រាប់ថ្នាក់បរិញ្ញាបត្រ ឆ្នាំទី២ ឆមាសទី១ · ដេប៉ាតឺម៉ង់ភូមិវិទ្យា និងរៀបចំដែនដី</div>
+<div class="pg title"><h1>មូលដ្ឋានគ្រឹះ<br>នៃការយកព័ត៌មានពីចម្ងាយ</h1><div class="en">Fundamentals of Remote Sensing</div><div class="rule"></div>
+<div class="meta">សៀវភៅទី៣ នៃស៊េរីសៀវភៅ GIS និងការយកព័ត៌មានពីចម្ងាយ</div><div class="meta">សម្រាប់ថ្នាក់បរិញ្ញាបត្រ ឆ្នាំទី៣ ឆមាសទី១ · ដេប៉ាតឺម៉ង់ភូមិវិទ្យា និងរៀបចំដែនដី</div>
 <div class="au" style="font-family:Battambang">យាំ សារដ្ឋ</div><div class="meta" style="font-family:Georgia">YAM Sarath</div><div class="meta">បោះពុម្ពលើកទី១ · ២០២៦</div></div>
-<div class="pg"><div class="copy"><b>ផែនទីវិទ្យា</b><br>Cartography: A Khmer-language textbook<br>
+<div class="pg"><div class="copy"><b>មូលដ្ឋានគ្រឹះនៃការយកព័ត៌មានពីចម្ងាយ</b><br>Fundamentals of Remote Sensing: A Khmer-language textbook<br>
 © ២០២៦ យាំ សារដ្ឋ (YAM Sarath) · បោះពុម្ពលើកទី១<br><br>
 ចេញផ្សាយក្រោមអាជ្ញាបណ្ណ <b>Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)</b>។ អ្នកអាចចម្លង ចែកចាយ និងកែសម្រួល ដោយត្រូវដកស្រង់អ្នកនិពន្ធ និងចែករំលែកក្រោមអាជ្ញាបណ្ណដដែល។<br><br>
-ទិន្នន័យក្នុងលំហាត់ជាកម្មសិទ្ធិរបស់ស្ថាប័នដែលផលិត ហើយមិនស្ថិតក្រោមអាជ្ញាបណ្ណសៀវភៅនេះទេ (មើលឧបសម្ព័ន្ធ ខ)។<br>
-ផែនទីមូលដ្ឋានក្នុងកំណែអនឡាញ © អ្នករួមចំណែក OpenStreetMap។<br><br>
-កំណែអនឡាញអន្តរកម្ម៖ {ONLINE}<br>ប្រភពកូដ និងទិន្នន័យ៖ https://github.com/khgeo/cartography<br><br>
+រូបភាពផ្កាយរណប៖ Landsat 8 ដោយ U.S. Geological Survey · មានទិន្នន័យ Copernicus Sentinel ដែលបានកែសម្រួល (ESA)។ ទិន្នន័យទាំងនេះមិនស្ថិតក្រោមអាជ្ញាបណ្ណសៀវភៅនេះទេ (មើលឧបសម្ព័ន្ធ ខ)។<br><br>
+កំណែអនឡាញអន្តរកម្ម៖ {ONLINE}<br>ប្រភពកូដ និងទិន្នន័យ៖ https://github.com/khgeo/remote-sensing<br><br>
 ពុម្ពអក្សរ៖ Siemreap Battambang Moul (Danh Hong · SIL Open Font License)<br>
-ការដកស្រង់៖ YAM Sarath [យាំ សារដ្ឋ] (2026). ផែនទីវិទ្យា [Cartography: A Khmer-language textbook]. CC BY-SA 4.0.</div></div>
+ការដកស្រង់៖ YAM Sarath [យាំ សារដ្ឋ] (2026). មូលដ្ឋានគ្រឹះនៃការយកព័ត៌មានពីចម្ងាយ [Fundamentals of Remote Sensing: A Khmer-language textbook]. CC BY-SA 4.0.</div></div>
 <div class="pg pref" style="height:auto;overflow:visible"><h2>អំពីសៀវភៅនេះ</h2>
-<p>សៀវភៅនេះជាឯកសារបង្រៀនសម្រាប់មុខវិជ្ជា ផែនទីវិទ្យា ៣ ក្រេឌីត ៤៥ ម៉ោង។ វាមានពីរផ្នែកធំ៖ <b>មេរៀនទ្រឹស្ដី ១៥</b> (៣ ម៉ោងក្នុងមួយមេរៀន) និង <b>សៀវភៅអនុវត្ត ១៥ លំហាត់</b> លើកម្មវិធី QGIS 3.34 LTR ដែលនិស្សិតធ្វើដោយខ្លួនឯង។</p>
-<p>សៀវភៅនេះបង្រៀនពីរបៀបដែលផែនទីតំណាងពិភពពិត៖ រាងផែនដី ប្រព័ន្ធកូអរដោនេ ចំណោល មាត្រដ្ឋាន ការអានផែនទីទីសណ្ឋាន និមិត្តសញ្ញា ការចាត់ថ្នាក់ ពណ៌ ផែនទីប្រធានបទ អក្សរ និងប្លង់ផែនទី។ ការវិភាគទិន្នន័យលំហ ជាខ្លឹមសារសៀវភៅទី២ ឯរូបភាពផ្កាយរណប ជាខ្លឹមសារសៀវភៅទី៣។</p>
-<p><b>ពិសោធន៍ និងផែនទីអន្តរកម្ម</b>៖ កំណែអនឡាញមានពិសោធន៍ ល្បែងផ្គូផ្គង និងប្រអប់ពិនិត្យលទ្ធផលដោយខ្លួនឯង។ ក្នុងសៀវភៅបោះពុម្ពនេះ ពួកវាបង្ហាញតែស្ថានភាពដំបូង ជាមួយកូដ QR ដែលនាំទៅទំព័រអនឡាញ។</p></div>
+<p>សៀវភៅនេះជាឯកសារបង្រៀនសម្រាប់មុខវិជ្ជា មូលដ្ឋានគ្រឹះនៃការយកព័ត៌មានពីចម្ងាយ ៣ ក្រេឌីត ៤៥ ម៉ោង។ វាមាន <b>មេរៀនទ្រឹស្ដី ១៥</b> (៣ ម៉ោងក្នុងមួយមេរៀន) និង <b>សៀវភៅអនុវត្ត ១៥ លំហាត់</b> លើកម្មវិធី QGIS 3.34 LTR ជាមួយរូបភាព Landsat 8 និង Sentinel-2 ពិតលើកម្ពុជា។</p>
+<p>សៀវភៅនេះចាប់ផ្ដើមពីរូបវិទ្យានៃរលកអេឡិចត្រូម៉ាញេទិច ឆ្លងកាត់ឧបករណ៍ចាប់សញ្ញា គន្លង និងគុណភាពបង្ហាញ ការកែតម្រូវរ៉ាដ្យូម៉ែត្រ និងធរណីមាត្រ ការបកស្រាយ និងសន្ទស្សន៍ ការចាត់ថ្នាក់ និងការវាយតម្លៃភាពត្រឹមត្រូវ រហូតដល់ការរកការផ្លាស់ប្ដូរ និងរ៉ាដា SAR។ Google Earth Engine និងការអនុវត្តទ្រង់ទ្រាយធំ ជាខ្លឹមសារសៀវភៅទី៤។</p>
+<p><b>ពិសោធន៍អន្តរកម្ម</b>៖ កំណែអនឡាញមានពិសោធន៍ ២៩ និងប្រអប់ពិនិត្យលទ្ធផលដោយខ្លួនឯង។ ក្នុងសៀវភៅបោះពុម្ពនេះ ពួកវាបង្ហាញតែស្ថានភាពដំបូង ជាមួយកូដ QR ដែលនាំទៅទំព័រអនឡាញ។ ទិន្នន័យវគ្គ <b>RS_Data.zip</b> ទាញយកបានពីទំព័រ Releases របស់ GitHub។</p></div>
 <div class="toc"><h2>មាតិកា</h2>{''.join(rows)}</div>
 </body></html>"""
 
@@ -207,12 +206,12 @@ async def render(chrome_path=None):
             body.append(f'<section class="book-section md-typeset" id="{slug_of(md)}"><span class="mark">ZZ|{slug_of(md)}|ZZ</span>{extract(md, pages)}</section>')
     book_dir = os.path.join(SITE, "print", "book"); os.makedirs(book_dir, exist_ok=True)
     head = "".join(f'<link rel="stylesheet" href="{h}">' for h in css_links + extra + [leaflet_css])
-    doc = f'<!doctype html><html lang="km"><head><meta charset="utf-8">{head}<style>{PRINT_CSS}</style></head><body data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="deep-orange"><div class="md-typeset">{"".join(body)}</div><script src="{leaflet_js}"></script><script src="/assets/js/lesson-sims.js"></script><script src="/assets/js/workbook.js"></script></body></html>'
+    doc = f'<!doctype html><html lang="km"><head><meta charset="utf-8">{head}<style>{PRINT_CSS}</style></head><body data-md-color-scheme="default" data-md-color-primary="brown" data-md-color-accent="deep-orange"><div class="md-typeset">{"".join(body)}</div><script src="{leaflet_js}"></script><script src="/assets/js/rs-sims.js"></script><script src="/assets/js/lesson-sims.js"></script><script src="/assets/js/workbook.js"></script></body></html>'
     open(os.path.join(book_dir, "index.html"), "w", encoding="utf-8").write(doc)
     cover.write(OUT)
     httpd = serve()
     digit_css = f"@font-face{{font-family:KhmerDigits;src:url(data:font/ttf;base64,{__import__('base64').b64encode(open(dfont,'rb').read()).decode()})}}" if dfont else ""
-    header = f'<div style="width:100%;font-family:Battambang;font-size:7.5pt;color:#888;padding:0 18mm 0 20mm;display:flex;justify-content:space-between"><span>{TITLE}</span><span>សៀវភៅទី១</span></div>'
+    header = f'<div style="width:100%;font-family:Battambang;font-size:7.5pt;color:#888;padding:0 18mm 0 20mm;display:flex;justify-content:space-between"><span>{TITLE}</span><span>សៀវភៅទី៣</span></div>'
     footer = f'<style>{digit_css}</style><div style="width:100%;text-align:center;font-family:KhmerDigits,Battambang;font-size:9pt;color:#555"><span class="pageNumber"></span></div>'
     async with async_playwright() as p:
         b = await p.chromium.launch(executable_path=chrome_path) if chrome_path else await p.chromium.launch()
@@ -253,8 +252,8 @@ async def render(chrome_path=None):
         if kind == "divider": parent = w.add_outline_item(title, offset + page - 1)
         else: w.add_outline_item(title, offset + page - 1, parent=parent if _ else None)
     for pgx in PdfReader(os.path.join(OUT, "backcover.pdf")).pages: w.add_page(pgx)
-    w.add_metadata({"/Title": TITLE + " (Cartography)", "/Author": "YAM Sarath (យាំ សារដ្ឋ)", "/Subject": "Khmer-language cartography textbook", "/Keywords": "GIS, QGIS, Cambodia, Khmer"})
-    final = os.path.join(OUT, "fundamentals-of-gis.pdf")
+    w.add_metadata({"/Title": TITLE + " (Fundamentals of Remote Sensing)", "/Author": "YAM Sarath (យាំ សារដ្ឋ)", "/Subject": "Khmer-language remote sensing textbook", "/Keywords": "Remote sensing, Landsat, Sentinel-2, QGIS, Cambodia, Khmer"})
+    final = os.path.join(OUT, "fundamentals-of-remote-sensing.pdf")
     with open(final, "wb") as f: w.write(f)
     # ---- wraparound cover for a print shop (spine from page count)
     html_wrap, wmm, hmm, spine = cover.wrap(len(w.pages))
