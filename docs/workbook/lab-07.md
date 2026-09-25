@@ -55,6 +55,9 @@
     | ដើមឈើ | | | | |
     | ដីទទេ | | | | |
 
+!!! tip "វិធីស្វ័យប្រវត្តិក្នុង SCP"
+    Semi-Automatic Classification Plugin អាចបម្លែង Landsat ទាំងមូលដោយស្វ័យប្រវត្តិ៖ **SCP → Preprocessing → Landsat** · ជ្រើសថតដែលមាន `L8_B*.tif` និងឯកសារ MTL · ធីក **Apply DOS1 atmospheric correction**។ ក្រុមរលកលទ្ធផលមានឈ្មោះចាប់ផ្ដើមដោយ `RT_` (reflectance)។ ប្រៀបធៀបតម្លៃ `RT_L8_B4` ជាមួយ `b4_dos.tif` ដែលអ្នកគណនាដោយដៃ។
+
 ## សកម្មភាពទី៣៖ Dark Object Subtraction · ២៥ នាទី
 
 1. រកតម្លៃអប្បបរមានៃ `b4_toa.tif` (**Raster → Analysis → Raster Layer Statistics**)។ ប្រើតម្លៃ percentile ០,១% ជំនួសអប្បបរមាដាច់ខាត បើមានក្រឡាខុសប្រក្រតី។

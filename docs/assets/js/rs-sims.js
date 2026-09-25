@@ -1161,4 +1161,102 @@
     q(".sh-t").addEventListener("input", draw); draw();
     window.addEventListener("resize", () => el.isConnected && draw());
   };
+
+  /* ---------- L8 · aerial photo scale, relief displacement and shadow height ---------- */
+  window.EXTRA_SIMS["rs-photoscale"] = (el) => {
+    const { cv, ctx, out, q } = shell(el, "មាត្រដ្ឋានរូបថត និងការវាស់កម្ពស់វត្ថុ",
+      `<label>ប្រវែងកំណុំ f (មម) <b class="ps-fv"></b> <input type="range" class="ps-f" min="50" max="305" value="152"></label>
+       <label>កម្ពស់ហោះ H (ម) <b class="ps-Hv"></b> <input type="range" class="ps-H" min="300" max="5000" step="50" value="1830"></label>
+       <label>កម្ពស់ដី h<sub>ដី</sub> (ម) <b class="ps-tv"></b> <input type="range" class="ps-t" min="0" max="600" step="10" value="0"></label>
+       <label>កម្ពស់អគារ h (ម) <b class="ps-hv"></b> <input type="range" class="ps-h" min="0" max="200" step="5" value="60"></label>
+       <label>ចម្ងាយពីចំណុចកណ្ដាល r (មម) <b class="ps-rv"></b> <input type="range" class="ps-r" min="5" max="110" value="80"></label>`);
+    const W = 640, H0 = 330;
+    const draw = () => {
+      fit(cv, ctx, W, H0);
+      const f = +q(".ps-f").value, Hf = +q(".ps-H").value, ht = +q(".ps-t").value, h = +q(".ps-h").value, r = +q(".ps-r").value;
+      q(".ps-fv").textContent = kh(f); q(".ps-Hv").textContent = fmtN(Hf); q(".ps-tv").textContent = kh(ht); q(".ps-hv").textContent = kh(h); q(".ps-rv").textContent = kh(r);
+      const Hg = Math.max(10, Hf - ht);                 // flying height above the local ground
+      const S = (Hg * 1000) / f;                         // scale denominator
+      const d = (r * h) / Hg;                            // relief displacement on the photo (mm)
+      const dGround = (d / 1000) * S;                    // same displacement expressed on the ground (m)
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H0);
+      // schematic: exposure station, lens rays, ground, building
+      const gx0 = 40, gx1 = 600, gy = 290, camX = 200, camY = 36;
+      ctx.fillStyle = "#e8f5e9"; ctx.fillRect(gx0, gy, gx1 - gx0, 24); ctx.strokeStyle = "#8d6e63"; ctx.beginPath(); ctx.moveTo(gx0, gy); ctx.lineTo(gx1, gy); ctx.stroke();
+      ctx.fillStyle = "#37474f"; ctx.beginPath(); ctx.arc(camX, camY, 6, 0, 7); ctx.fill();
+      ctx.font = `11px ${font()}`; ctx.fillText("ចំណុចថត L", camX + 10, camY + 4);
+      ctx.strokeStyle = "#90a4ae"; ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(camX, camY); ctx.lineTo(camX, gy); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = "#555"; ctx.fillText("ចំណុចមេ (PP)", camX - 40, gy + 18);
+      // building at horizontal distance proportional to r
+      const bx = camX + (r / 110) * 330, bh = (h / 200) * 150;
+      ctx.fillStyle = "#b0bec5"; ctx.fillRect(bx - 10, gy - bh, 20, bh); ctx.strokeStyle = "#455a64"; ctx.strokeRect(bx - 10, gy - bh, 20, bh);
+      // ray through the building top reaching the ground: apparent position further away
+      const k = (gy - camY) / Math.max(1, gy - bh - camY), topGroundX = camX + (bx - camX) * k;
+      ctx.strokeStyle = "#e65100"; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(camX, camY); ctx.lineTo(Math.min(gx1, topGroundX), gy); ctx.stroke(); ctx.lineWidth = 1;
+      ctx.strokeStyle = "#1565c0"; ctx.beginPath(); ctx.moveTo(camX, camY); ctx.lineTo(bx, gy); ctx.stroke();
+      ctx.strokeStyle = "#c62828"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(bx, gy + 4); ctx.lineTo(Math.min(gx1, topGroundX), gy + 4); ctx.stroke(); ctx.lineWidth = 1;
+      ctx.fillStyle = "#c62828"; ctx.fillText("ការផ្លាស់ទីដោយសារកម្ពស់", Math.min(gx1 - 130, bx + 6), gy - 6 - bh);
+      // equations panel
+      ctx.fillStyle = "#333"; ctx.font = `12px ${font()}`;
+      ctx.fillText(`s = f ÷ (H − hដី) = ${kh(f)} មម ÷ ${fmtN(Hg)} ម`, 360, 40);
+      ctx.fillText(`មាត្រដ្ឋាន ≈ ១ : ${fmtN(Math.round(S / 10) * 10)}`, 360, 60);
+      ctx.fillText(`d = r × h ÷ (H − hដី) = ${fmtN(d, 2)} មម លើរូបថត`, 360, 90);
+      ctx.fillText(`≈ ${fmtN(dGround, 1)} ម នៅលើដី`, 360, 110);
+      out.innerHTML = `មាត្រដ្ឋាន <b>១ : ${fmtN(Math.round(S / 10) * 10)}</b> · ការផ្លាស់ទីកំពូលអគារ <b>${fmtN(d, 2)} មម</b> លើរូបថត (≈ ${fmtN(dGround, 1)} ម លើដី)<br>` +
+        `<span class="sim-hint">រូបមន្តបញ្ច្រាស h = d × H ÷ r អនុញ្ញាតឲ្យវាស់កម្ពស់អគារពីរូបថតតែមួយ បើយើងវាស់ d និង r បាន។ ការផ្លាស់ទីកើនឡើងពេលអគារខ្ពស់ជាង នៅឆ្ងាយពីចំណុចមេ ឬពេលហោះទាប។ ដូច្នេះរូបថតដ្រូន (H តូច) មានការផ្លាស់ទីខ្លាំងជាងរូបភាពផ្កាយរណប (H ≈ ៧០០ គម)។</span>`;
+    };
+    el.querySelectorAll("input").forEach((x) => x.addEventListener("input", draw)); draw();
+    window.addEventListener("resize", () => el.isConnected && draw());
+  };
+
+  /* ---------- L12 · region growing for training areas (real scene) ---------- */
+  window.EXTRA_SIMS["rs-regiongrow"] = async (el) => {
+    const S = await loadScene();
+    const { cv, ctx, out, q } = shell(el, "ការបង្កើតតំបន់គំរូដោយ Region Growing",
+      `<label>ចម្ងាយស្ពិចត្រាល់អតិបរមា <b class="rg-dv"></b> <input type="range" class="rg-d" min="2" max="25" value="10"></label>
+       <label>ទំហំអតិបរមា (ក្រឡា) <b class="rg-mv"></b> <input type="range" class="rg-m" min="20" max="3000" step="20" value="600"></label>
+       <span class="sim-hint">ចុចលើរូបភាព ដើម្បីដាក់គ្រាប់ពូជ (seed)</span>`);
+    const W = 640, H = 340, n = S.n, MS = 300, ox = 12, oy = 18;
+    let seed = null;
+    // default seed: centre of the largest homogeneous tree patch (7x7 window all trees)
+    for (let y = Math.floor(n * 0.6); y < n - 4 && seed === null; y++) for (let x = 4; x < n - 4; x++) { let ok = true;
+      for (let dy = -3; dy <= 3 && ok; dy++) for (let dx = -3; dx <= 3; dx++) if (S.cls[(y + dy) * n + x + dx] !== 1) { ok = false; break; }
+      if (ok) { seed = y * n + x; break; } }
+    if (seed === null) seed = Math.floor(n * n / 2);
+    const base = composite(S, [2, 1, 0], n, false);
+    const grow = (thr, maxN) => {
+      const sv = [0, 1, 2, 3, 4, 5].map((b) => refl(S, b, seed));
+      const inR = new Uint8Array(n * n), stack = [seed]; inR[seed] = 1; let count = 0; const list = [];
+      while (stack.length && count < maxN) { const i = stack.shift(); list.push(i); count++;
+        const x = i % n, y = (i / n) | 0;
+        [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => { const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= n || yy >= n) return;
+          const j = yy * n + xx; if (inR[j]) return;
+          let d2 = 0; for (let b = 0; b < 6; b++) d2 += (refl(S, b, j) - sv[b]) ** 2;
+          if (Math.sqrt(d2) <= thr) { inR[j] = 1; stack.push(j); } }); }
+      return list;
+    };
+    const draw = () => {
+      fit(cv, ctx, W, H); const thr = +q(".rg-d").value / 100, maxN = +q(".rg-m").value;
+      q(".rg-dv").textContent = fmtN(thr, 2); q(".rg-mv").textContent = fmtN(maxN);
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+      const img = new ImageData(new Uint8ClampedArray(base.data), n, n);
+      const reg = grow(thr, maxN);
+      reg.forEach((i) => { const o = i * 4; img.data[o] = 245; img.data[o + 1] = 150; img.data[o + 2] = 30; });
+      putScaled(ctx, img, ox, oy, MS);
+      const sx = ox + ((seed % n) / n) * MS, sy = oy + (((seed / n) | 0) / n) * MS;
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx, sy, 5, 0, 7); ctx.stroke(); ctx.lineWidth = 1;
+      const cnt = [0, 0, 0, 0, 0]; reg.forEach((i) => cnt[S.cls[i]]++);
+      const main = cnt.indexOf(Math.max(...cnt)), purity = (cnt[main] / reg.length) * 100;
+      ctx.font = `12px ${font()}`; ctx.fillStyle = "#333"; ctx.fillText("សមាសភាពនៃតំបន់គំរូ (តាមផែនទីយោង)", 330, 40);
+      S.classes.forEach((c, k) => { const y = 64 + k * 24, wbar = (cnt[k] / Math.max(1, reg.length)) * 180;
+        ctx.fillStyle = `rgb(${CLSCOL[k].join(",")})`; ctx.fillRect(420, y - 11, wbar, 14); ctx.fillStyle = "#333"; ctx.fillText(c, 330, y); ctx.fillText(kh(cnt[k]), 606, y); });
+      out.innerHTML = `តំបន់គំរូមាន <b>${fmtN(reg.length)}</b> ក្រឡា · ថ្នាក់លេចធ្លោ <b>${S.classes[main]}</b> ${fmtN(purity)}%` +
+        `<br><span class="sim-hint">ចម្ងាយស្ពិចត្រាល់ = ចម្ងាយ Euclid គ្រប់ក្រុមរលក រវាងក្រឡាជិតខាង និងក្រឡាគ្រាប់ពូជ។ តម្លៃតូចពេក តំបន់មិនលូតលាស់ · ធំពេក តំបន់លាតចូលថ្នាក់ផ្សេង (ភាពបរិសុទ្ធធ្លាក់)។ ក្បួនអនុវត្ត៖ ក្រុមរលក n ត្រូវការ > ១០n ក្រឡាក្នុងមួយថ្នាក់ (ទីនេះ ៦ ក្រុមរលក → > ៦០ ក្រឡា)។</span>`;
+    };
+    const pickAt = (e) => { const r = cv.getBoundingClientRect(), s2 = r.width / W; const x = (e.clientX - r.left) / s2 - ox, y = (e.clientY - r.top) / s2 - oy;
+      if (x < 0 || y < 0 || x > MS || y > MS) return; seed = clamp(Math.floor((y / MS) * n), 0, n - 1) * n + clamp(Math.floor((x / MS) * n), 0, n - 1); draw(); };
+    cv.addEventListener("pointerdown", pickAt);
+    el.querySelectorAll("input").forEach((x) => x.addEventListener("input", draw)); draw();
+    window.addEventListener("resize", () => el.isConnected && draw());
+  };
 })();
