@@ -17,7 +17,17 @@
 
 ## ឯកសារដែលប្រើ
 
-- រូបភាព Sentinel-2 L2A ពីលំហាត់មុន
+- **ទិន្នន័យវគ្គ (ណែនាំ)**៖ Landsat 8 ភ្នំពេញ ជាការចាំងផ្លាត TOA ពី[លំហាត់ទី៧](lab-07.md) · [`RS_Data.zip`](https://github.com/khgeo/remote-sensing/releases/latest/download/RS_Data.zip) → `L8_PhnomPenh_2019` ([ឧបសម្ព័ន្ធ ខ](../appendix/b-imagery-data.md))
+- ឬរូបភាព Sentinel-2 L2A ពីលំហាត់មុន
+
+!!! tip "ឈ្មោះក្រុមរលកតាមឧបករណ៍"
+    | តួនាទី | Sentinel-2 | Landsat 8/9 |
+    |---|---|---|
+    | ខៀវ · បៃតង · ក្រហម | B2 · B3 · B4 | B2 · B3 · B4 |
+    | NIR | B8 | B5 |
+    | SWIR1 · SWIR2 | B11 · B12 | B6 · B7 |
+
+    បើប្រើទិន្នន័យ Landsat 8 ភ្នំពេញ សូមប្ដូរលេខក្រុមរលកក្នុងរូបមន្ត និងបន្សំពណ៌តាមតារាងនេះ (ឧ. NDVI = (B5 − B4) / (B5 + B4))។
 
 ## ពិសោធន៍មុនចាប់ផ្ដើម · ១៥ នាទី
 

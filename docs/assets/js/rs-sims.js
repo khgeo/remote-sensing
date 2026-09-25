@@ -23,9 +23,10 @@
     const bin = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
     const raw = bin(j.data), n = j.n, nb = j.bands.length;
     const b = []; for (let k = 0; k < nb; k++) b.push(raw.subarray(k * n * n, (k + 1) * n * n));
-    scene = { n, nb, names: j.bands, scale: j.scale, px: j.px_m, classes: j.classes, band: b, cls: bin(j.cls) };
+    scene = { n, nb, names: j.bands, scale: j.scale, px: j.px_m, classes: j.classes, band: b, cls: bin(j.cls), sensor: j.sensor || "", date: j.date || "", place: j.place || "" };
     return scene;
   };
+  const srcNote = (S) => `ទិន្នន័យពិត៖ ${S.sensor} · ${S.place} · ${kh(S.date)} · ${kh(S.n)} × ${kh(S.n)} ក្រឡា · ក្រឡា ${kh(S.px)} ម (≈ ${fmtN(S.n * S.px / 1000, 1)} × ${fmtN(S.n * S.px / 1000, 1)} គម) · ការចាំងផ្លាតកំពូលបរិយាកាស (TOA)`;
   const refl = (S, b, i) => S.band[b][i] * S.scale;          // surface reflectance 0–0.6
   const CLSCOL = [[38, 108, 168], [27, 94, 32], [124, 179, 66], [183, 28, 28], [161, 136, 107]];
 
@@ -68,9 +69,9 @@
   window.EXTRA_SIMS["rs-view"] = async (el) => {
     const S = await loadScene();
     const { cv, ctx, out, q } = shell(el, "តើផ្កាយរណបឃើញអ្វី?",
-      `<span class="sim-seg rv-c"><button type="button" data-c="true" class="on">ពណ៌ពិត (B4-B3-B2)</button><button type="button" data-c="false">ពណ៌សន្មត (B8-B4-B3)</button><button type="button" data-c="swir">SWIR (B12-B8-B4)</button></span>
+      `<span class="sim-seg rv-c"><button type="button" data-c="true" class="on">ពណ៌ពិត (${S.names[2]}-${S.names[1]}-${S.names[0]})</button><button type="button" data-c="false">ពណ៌សន្មត (${S.names[3]}-${S.names[2]}-${S.names[1]})</button><button type="button" data-c="swir">SWIR (${S.names[5]}-${S.names[3]}-${S.names[2]})</button></span>
        <label><input type="checkbox" class="rv-l"> បង្ហាញស្រទាប់គម្របដី</label>`);
-    const W = 640, H = 340;
+    const W = 640, H = 372;
     const draw = () => {
       fit(cv, ctx, W, H); const c = el.querySelector(".rv-c .on").dataset.c, showCls = q(".rv-l").checked;
       const combo = { true: [2, 1, 0], false: [3, 2, 1], swir: [5, 3, 2] }[c];
@@ -80,22 +81,22 @@
         for (let i = 0; i < S.n * S.n; i++) { const col = CLSCOL[S.cls[i]]; const o = i * 4;
           img.data[o] = col[0]; img.data[o + 1] = col[1]; img.data[o + 2] = col[2]; img.data[o + 3] = 255; }
         putScaled(ctx, img, 330, 18, 300);
-        ctx.font = `12px ${font()}`;
-        S.classes.forEach((t, i) => { ctx.fillStyle = `rgb(${CLSCOL[i].join(",")})`; ctx.fillRect(330 + i * 62, 324, 14, 11);
-          ctx.fillStyle = "#333"; ctx.font = `10px ${font()}`; ctx.fillText(t, 330 + i * 62, 320); });
+        S.classes.forEach((t, i) => { const lx = 330 + (i % 3) * 102, ly = 332 + Math.floor(i / 3) * 20;
+          ctx.fillStyle = `rgb(${CLSCOL[i].join(",")})`; ctx.fillRect(lx, ly - 10, 14, 12); ctx.strokeStyle = "#999"; ctx.strokeRect(lx, ly - 10, 14, 12);
+          ctx.fillStyle = "#333"; ctx.font = `11px ${font()}`; ctx.fillText(t, lx + 18, ly); });
       } else {
         ctx.font = `12px ${font()}`; ctx.fillStyle = "#333";
-        const rows = { true: [["ទឹក", "ខ្មៅ ឬខៀវងងឹត"], ["ព្រៃឈើ", "បៃតងចាស់"], ["ស្រែ", "បៃតងស្រាល"], ["តំបន់សាងសង់", "ប្រផេះ ស"], ["ដីទទេ", "ត្នោតស"]],
-          false: [["ទឹក", "ខ្មៅ (ស្រូបអ៊ីនហ្វ្រាក្រហម)"], ["ព្រៃឈើ", "ក្រហមចាស់"], ["ស្រែ", "ក្រហមភ្លឺ"], ["តំបន់សាងសង់", "ប្រផេះ ខៀវស្រាល"], ["ដីទទេ", "បៃតងស ឬត្នោត"]],
-          swir: [["ទឹក", "ខ្មៅ"], ["ព្រៃឈើ", "បៃតងចាស់"], ["ស្រែសើម", "បៃតង"], ["តំបន់សាងសង់", "ស្វាយ ផ្កាឈូក"], ["ដីទទេ", "ផ្កាឈូកភ្លឺ"]] }[c];
+        const rows = { true: [["ទឹក (ទន្លេ)", "ខៀវបៃតង ល្អក់"], ["ដើមឈើ", "បៃតងចាស់"], ["ដំណាំ/ស្មៅ", "បៃតងស្រអាប់ ត្នោត"], ["តំបន់សាងសង់", "ប្រផេះ ស្វាយស្រាល"], ["ដីទទេ", "ស ត្នោតស"]],
+          false: [["ទឹក (ទន្លេ)", "ខៀវខ្មៅ"], ["ដើមឈើ", "ក្រហមចាស់"], ["ដំណាំ/ស្មៅ", "ក្រហមស្រាល"], ["តំបន់សាងសង់", "ប្រផេះ ខៀវស្រាល"], ["ដីទទេ", "ស ប្រផេះ"]],
+          swir: [["ទឹក (ទន្លេ)", "ខ្មៅ"], ["ដើមឈើ", "បៃតងចាស់"], ["ដំណាំ/ស្មៅ", "បៃតង"], ["តំបន់សាងសង់", "ស្វាយ ផ្កាឈូក"], ["ដីទទេ", "ផ្កាឈូកភ្លឺ"]] }[c];
         ctx.fillText("វត្ថុនីមួយៗលេចឡើងយ៉ាងណា", 330, 34);
         rows.forEach(([a, b], i) => { ctx.fillStyle = "#333"; ctx.font = `12px ${font()}`; ctx.fillText(a, 330, 62 + i * 26);
           ctx.fillStyle = "#666"; ctx.fillText(b, 450, 62 + i * 26); });
       }
       const NOTE = { true: "ពណ៌ពិតប្រើរលកដែលភ្នែកមនុស្សឃើញ (ក្រហម បៃតង ខៀវ)។ វាមើលទៅធម្មជាតិ ប៉ុន្តែពិបាកបែងចែករុក្ខជាតិ។",
-        false: "ពណ៌សន្មតបញ្ចូលអ៊ីនហ្វ្រាក្រហមជិត (B8) ជាពណ៌ក្រហម។ រុក្ខជាតិដែលមានសុខភាពល្អឆ្លុះអ៊ីនហ្វ្រាក្រហមខ្លាំង ដូច្នេះវាក្លាយជាក្រហមភ្លឺ។",
-        swir: "SWIR (B12) ជួយបែងចែកសំណើម ដី និងតំបន់សាងសង់ ព្រមទាំងអាចមើលឆ្លងផ្សែងបានខ្លះ។" }[c];
-      out.innerHTML = `${NOTE}<br><span class="sim-hint">ទិដ្ឋភាពគំរូ ២០០ × ២០០ ក្រឡា ក្រឡា ១០ ម (ប្រហែល ២ × ២ គម) · តម្លៃចាំងផ្លាតជាតម្លៃសំយោគតាមបែប Sentinel-2។</span>`;
+        false: `ពណ៌សន្មតបញ្ចូលអ៊ីនហ្វ្រាក្រហមជិត (${S.names[3]}) ជាពណ៌ក្រហម។ រុក្ខជាតិដែលមានសុខភាពល្អឆ្លុះអ៊ីនហ្វ្រាក្រហមខ្លាំង ដូច្នេះវាក្លាយជាក្រហមភ្លឺ។`,
+        swir: `SWIR (${S.names[5]}) ជួយបែងចែកសំណើម ដី និងតំបន់សាងសង់ ព្រមទាំងអាចមើលឆ្លងផ្សែងបានខ្លះ។` }[c];
+      out.innerHTML = `${NOTE}<br><span class="sim-hint">${srcNote(S)} · ស្រទាប់គម្របដីជាផែនទីយោងដែលបង្កើតដោយកម្រិតកំណត់សន្ទស្សន៍ សម្រាប់បង្រៀន (មិនមែនការផ្ទៀងផ្ទាត់ទីវាល)។</span>`;
     };
     el.querySelectorAll(".rv-c button").forEach((b) => (b.onclick = () => { el.querySelectorAll(".rv-c button").forEach((x) => x.classList.remove("on")); b.classList.add("on"); draw(); }));
     q(".rv-l").addEventListener("change", draw); draw();
@@ -106,7 +107,7 @@
   window.EXTRA_SIMS["rs-resolution"] = async (el) => {
     const S = await loadScene();
     const { cv, ctx, out, q } = shell(el, "ទំហំក្រឡា៖ អ្នកអាចសម្គាល់អ្វីខ្លះ?",
-      `<label>ទំហំក្រឡា <select class="rr-p"><option value="10" selected>១០ ម (Sentinel-2)</option><option value="20">២០ ម (Sentinel-2 SWIR)</option><option value="30">៣០ ម (Landsat)</option><option value="60">៦០ ម</option><option value="250">២៥០ ម (MODIS)</option></select></label>
+      `<label>ទំហំក្រឡា <select class="rr-p"><option value="30" selected>៣០ ម (Landsat · ដើម)</option><option value="60">៦០ ម</option><option value="120">១២០ ម</option><option value="250">២៥០ ម (MODIS)</option><option value="500">៥០០ ម (MODIS)</option></select></label>
        <label><input type="checkbox" class="rr-m" checked> ក្រឡាចម្រុះ (mixed pixels)</label>`);
     const W = 640, H = 350;
     const draw = () => {
@@ -116,12 +117,12 @@
       putScaled(ctx, composite(S, [2, 1, 0], S.n, false), 12, 18, 300);
       putScaled(ctx, composite(S, [2, 1, 0], size, mix), 326, 18, 300);
       ctx.font = `12px ${font()}`; ctx.fillStyle = "#333";
-      ctx.fillText("១០ ម (ដើម)", 12, 334); ctx.fillText(`${kh(px)} ម`, 326, 334);
-      const canSee = [["ផ្ទះមួយខ្នង (១៥ ម)", 10], ["ផ្លូវជាតិ (២០ ម)", 20], ["ស្រែមួយក្បាល (១០០ ម)", 60], ["ភូមិ (៣០០ ម)", 250], ["តំបន់ព្រៃ (គីឡូម៉ែត្រ)", 1000]];
+      ctx.fillText(`${kh(S.px)} ម (ដើម · ${S.sensor})`, 12, 334); ctx.fillText(`${kh(px)} ម`, 326, 334);
+      const canSee = [["ផ្ទះមួយខ្នង (១៥ ម)", 5], ["ផ្លូវធំ និងទន្លេបាសាក់ (១០០ ម)", 30], ["ស្រែមួយក្បាល (១០០ ម)", 60], ["កោះ ឬសង្កាត់ (៥០០ ម)", 250], ["ទន្លេមេគង្គ (១ គម)", 500]];
       const ok = canSee.filter(([, r]) => px <= r).length;
       out.innerHTML = `ក្រឡា ១ = <b>${fmtN(px * px / 10000, 2)} ហ.ត</b> · រូបភាពមាន <b>${fmtN(size * size)}</b> ក្រឡា (ធៀបនឹង ${fmtN(S.n * S.n)})<br>` +
         canSee.map(([t, r]) => `<span style="color:${px <= r ? "#2e7d32" : "#c62828"}">${px <= r ? "✓" : "✗"} ${t}</span>`).join(" · ") +
-        `<br><span class="sim-hint">${mix ? "ក្រឡាចម្រុះ៖ តម្លៃក្រឡាធំជាមធ្យមនៃវត្ថុច្រើនប្រភេទ ដូច្នេះព្រំដែនក្លាយជាព្រិល។" : "គំរូដោយយកក្រឡាកណ្ដាល (nearest)៖ វត្ថុតូចៗអាចបាត់ទាំងស្រុង។"}</span>`;
+        `<br><span class="sim-hint">${srcNote(S)}<br>${mix ? "ក្រឡាចម្រុះ៖ តម្លៃក្រឡាធំជាមធ្យមនៃវត្ថុច្រើនប្រភេទ ដូច្នេះព្រំដែនក្លាយជាព្រិល។" : "គំរូដោយយកក្រឡាកណ្ដាល (nearest)៖ វត្ថុតូចៗអាចបាត់ទាំងស្រុង។"}</span>`;
     };
     el.querySelectorAll("select,input").forEach((x) => x.addEventListener("change", draw)); draw();
     window.addEventListener("resize", () => el.isConnected && draw());
@@ -235,7 +236,7 @@
   /* ---------- L3 · spectral signatures + pixel probe ---------- */
   const SIG = {
     "ទឹកស្អាត": { col: "#1565c0", v: [[0.44, .045], [0.49, .045], [0.56, .04], [0.665, .028], [0.705, .02], [0.842, .012], [1.61, .006], [2.19, .004]] },
-    "ទឹកល្បាក់": { col: "#4dd0e1", v: [[0.44, .06], [0.49, .075], [0.56, .105], [0.665, .11], [0.705, .10], [0.842, .06], [1.61, .02], [2.19, .012]] },
+    "ទឹកល្អក់": { col: "#4dd0e1", v: [[0.44, .06], [0.49, .075], [0.56, .105], [0.665, .11], [0.705, .10], [0.842, .06], [1.61, .02], [2.19, .012]] },
     "ព្រៃឈើ": { col: "#1b5e20", v: [[0.44, .028], [0.49, .03], [0.56, .055], [0.665, .028], [0.705, .10], [0.842, .34], [1.61, .15], [2.19, .065]] },
     "ស្រែខ្ចី": { col: "#7cb342", v: [[0.44, .04], [0.49, .045], [0.56, .085], [0.665, .045], [0.705, .13], [0.842, .40], [1.61, .21], [2.19, .10]] },
     "ស្រែស្ងួត": { col: "#c0ca33", v: [[0.44, .07], [0.49, .09], [0.56, .14], [0.665, .17], [0.705, .20], [0.842, .28], [1.61, .33], [2.19, .26]] },
@@ -290,7 +291,8 @@
     const S = await loadScene();
     const { cv, ctx, out } = shell(el, "ចុចលើរូបភាព ដើម្បីអានសញ្ញាណរបស់ក្រឡា", `<span class="sim-hint">ចុច ឬអូសលើរូបភាពខាងឆ្វេង</span>`);
     const W = 640, H = 330, MS = 290, ox = 12, oy = 20;
-    let pick = { x: Math.floor(S.n * 0.3), y: Math.floor(S.n * 0.3) };
+    let pick = { x: Math.floor(S.n * 0.7), y: Math.floor(S.n * 0.7) };
+    for (let r = 0; r < S.n / 2; r++) { const i = (Math.floor(S.n * 0.7) - r) * S.n + Math.floor(S.n * 0.7) + r; if (S.cls[i] === 1) { pick = { x: i % S.n, y: Math.floor(i / S.n) }; break; } }
     const um = [0.49, 0.56, 0.665, 0.842, 1.61, 2.19];
     const draw = () => {
       fit(cv, ctx, W, H);
@@ -370,7 +372,7 @@
   window.EXTRA_SIMS["rs-tradeoff"] = async (el) => {
     const S = await loadScene();
     const { cv, ctx, out, q } = shell(el, "គុណភាពបង្ហាញទាំងបួន និងការសម្របសម្រួល",
-      `<label>លំហ (ម) <select class="tr-s"><option>5</option><option selected>10</option><option>30</option><option>60</option><option>250</option></select></label>
+      `<label>លំហ (ម) <select class="tr-s"><option selected>30</option><option>60</option><option>120</option><option>250</option></select></label>
        <label>រ៉ាដ្យូម៉ែត្រ <select class="tr-b"><option value="1">១ ប៊ីត (២ កម្រិត)</option><option value="3">៣ ប៊ីត (៨)</option><option value="5">៥ ប៊ីត (៣២)</option><option value="8" selected>៨ ប៊ីត (២៥៦)</option><option value="12">១២ ប៊ីត (៤ ០៩៦)</option></select></label>
        <label>ក្រុមរលក <select class="tr-n"><option value="3">៣ (RGB)</option><option value="6" selected>៦ (ពហុស្ពិចត្រាល់)</option><option value="13">១៣ (Sentinel-2)</option><option value="200">២០០ (hyperspectral)</option></select></label>`);
     const W = 640, H = 340;
@@ -439,53 +441,45 @@
   /* ---------- L7 · DN to reflectance, haze and correction ---------- */
   window.EXTRA_SIMS["rs-correction"] = async (el) => {
     const S = await loadScene();
-    const { cv, ctx, out, q } = shell(el, "ពី DN ទៅការចាំងផ្លាតផ្ទៃដី",
-      `<label>អ័ព្ទ (ពន្លឺផ្លូវ) <b class="co-hv"></b> <input type="range" class="co-h" min="0" max="60" value="25"></label>
-       <label>មុំព្រះអាទិត្យពីកំពូល <b class="co-zv"></b> <input type="range" class="co-z" min="10" max="60" value="30"></label>
-       <label><input type="checkbox" class="co-c"> អនុវត្តការកែតម្រូវ (DOS)</label>`);
-    const W = 640, H = 350;
+    // real Landsat 8 metadata (LC08_L1TP_126052_20190211 · MTL)
+    const MULT = 2.0e-5, ADD = -0.1, SUN_EL = 51.56434261, sinE = Math.sin((SUN_EL * Math.PI) / 180);
+    const { cv, ctx, out, q } = shell(el, "ពី DN ទៅការចាំងផ្លាត៖ រូបភាព Landsat 8 ពិត",
+      `<span class="sim-seg co-s"><button type="button" data-s="dn" class="on">១. DN ឆៅ</button><button type="button" data-s="toa">២. TOA (Mult/Add)</button><button type="button" data-s="sun">៣. + កែមុំព្រះអាទិត្យ</button><button type="button" data-s="dos">៤. + DOS</button></span>`);
+    const W = 640, H = 350, n = S.n;
+    const dosMin = [0, 1, 2, 3, 4, 5].map((b) => { const v = Array.from(S.band[b]).map((x) => x * S.scale).sort((p1, p2) => p1 - p2); return v[Math.floor(v.length * 0.001)]; });
+    const val = (stage, b, i) => { const toaSun = refl(S, b, i), toaRaw = toaSun * sinE;
+      if (stage === "dn") return (toaRaw - ADD) / MULT;
+      if (stage === "toa") return toaRaw;
+      if (stage === "sun") return toaSun;
+      return Math.max(0, toaSun - dosMin[b]); };
     const draw = () => {
-      fit(cv, ctx, W, H);
-      const haze = +q(".co-h").value / 1000, zen = +q(".co-z").value, corr = q(".co-c").checked;
-      q(".co-hv").textContent = kh(+q(".co-h").value); q(".co-zv").textContent = kh(zen) + "°";
-      const cosz = Math.cos((zen * Math.PI) / 180);
-      // path radiance decreases with wavelength (Rayleigh-ish): B2 strongest
-      const pathFor = [1.0, 0.72, 0.5, 0.22, 0.07, 0.04].map((f) => haze * f);
-      const n = S.n, img = ctx.createImageData(n, n);
-      const bandVals = [2, 1, 0].map((b) => new Float32Array(n * n));
-      for (let i = 0; i < n * n; i++) [2, 1, 0].forEach((b, k) => {
-        let r = refl(S, b, i) * cosz + pathFor[b];                 // simulated TOA
-        if (corr) r = Math.max(0, (r - pathFor[b]) / cosz);         // dark-object subtraction + sun correction
-        bandVals[k][i] = r; });
-      const lo = 0, hi = 0.45;
-      for (let i = 0; i < n * n; i++) { const o = i * 4;
-        for (let k = 0; k < 3; k++) img.data[o + k] = clamp(((bandVals[k][i] - lo) / (hi - lo)) * 255, 0, 255);
-        img.data[o + 3] = 255; }
+      fit(cv, ctx, W, H); const st = el.querySelector(".co-s .on").dataset.s;
+      const [lo, hi] = st === "dn" ? [0, 25000] : [0, 0.3];
       ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+      const img = ctx.createImageData(n, n);
+      for (let i = 0; i < n * n; i++) { const o = i * 4;
+        [2, 1, 0].forEach((b, k) => (img.data[o + k] = clamp(((val(st, b, i) - lo) / (hi - lo)) * 255, 0, 255))); img.data[o + 3] = 255; }
       putScaled(ctx, img, 12, 18, 290);
-      // histogram of band B4 (red)
       const hx = 330, hy = 40, hw = 290, hh = 150, bins = 40, cnt = new Array(bins).fill(0);
-      for (let i = 0; i < n * n; i++) cnt[clamp(Math.floor((bandVals[0][i] / 0.45) * bins), 0, bins - 1)]++;
+      let mn = Infinity; for (let i = 0; i < n * n; i++) { const v = val(st, 2, i); if (v < mn) mn = v; cnt[clamp(Math.floor(((v - lo) / (hi - lo)) * bins), 0, bins - 1)]++; }
       const cmax = Math.max(...cnt);
       ctx.strokeStyle = "#999"; ctx.strokeRect(hx, hy, hw, hh);
-      cnt.forEach((c, i) => { const h2 = (c / cmax) * (hh - 6); ctx.fillStyle = "#c62828";
-        ctx.fillRect(hx + (hw * i) / bins + 1, hy + hh - h2, hw / bins - 2, h2); });
+      cnt.forEach((c, i) => { const h2 = (c / cmax) * (hh - 6); ctx.fillStyle = "#c62828"; ctx.fillRect(hx + (hw * i) / bins + 1, hy + hh - h2, hw / bins - 2, h2); });
       ctx.font = `11px ${font()}`; ctx.fillStyle = "#555";
-      ctx.fillText("អ៊ីស្តូក្រាមនៃក្រុមរលកក្រហម", hx, hy - 8);
-      ctx.fillText("០", hx, hy + hh + 14); ctx.fillText("០,៤៥", hx + hw - 24, hy + hh + 14);
-      const minv = Math.min(...bandVals[0]), water = bandVals[0][Math.floor(n * 0.62) * n + Math.floor(n * 0.5)];
-      const idxOf = (cls) => { for (let i = 0; i < n * n; i++) if (S.cls[i] === cls) return i; return 0; };
-      const iw = idxOf(0), ifo = idxOf(1);
-      const ndviRaw = (() => { const nir = refl(S, 3, ifo) * cosz + haze * 0.1, red = refl(S, 2, ifo) * cosz + haze * 0.5;
-        return (nir - red) / (nir + red); })();
-      const ndviCorr = (() => { const nir = refl(S, 3, ifo), red = refl(S, 2, ifo); return (nir - red) / (nir + red); })();
-      out.innerHTML = `តម្លៃអប្បបរមាក្នុងក្រុមរលកក្រហម៖ <b>${fmtN(minv * 100, 1)}%</b> ` +
-        (corr ? "(ក្រោយកែតម្រូវ)" : "(មានពន្លឺផ្លូវ)") +
-        `<br>NDVI នៃព្រៃឈើ៖ មុនកែ <b>${fmtN(ndviRaw, 2)}</b> · ក្រោយកែ <b>${fmtN(ndviCorr, 2)}</b>` +
-        `<br><span class="sim-hint">ពន្លឺផ្លូវបន្ថែមតម្លៃថេរ ជាពិសេសក្នុងក្រុមរលកខ្លី ដូច្នេះអ៊ីស្តូក្រាមរំកិលទៅស្ដាំ ហើយ NDVI ធ្លាក់។ វិធី Dark Object Subtraction សន្មតថាក្រឡាងងឹតបំផុត (ទឹកជ្រៅ ឬស្រមោល) គួរមានតម្លៃជិតសូន្យ ហើយដកតម្លៃនោះចេញពីគ្រប់ក្រឡា។ ការបែងចែកនឹង cos(មុំព្រះអាទិត្យ) កែឥទ្ធិពលនៃមុំបំភ្លឺ។</span>`;
+      ctx.fillText(`អ៊ីស្តូក្រាមនៃក្រុមរលកក្រហម (${S.names[2]})`, hx, hy - 8);
+      ctx.fillText(st === "dn" ? "០" : "០", hx, hy + hh + 14); ctx.fillText(st === "dn" ? "២៥ ០០០ DN" : "០,៣", hx + hw - (st === "dn" ? 64 : 22), hy + hh + 14);
+      // NDVI of tree class, computed in each stage's units
+      let sN = 0, sR = 0, c1 = 0; for (let i = 0; i < n * n; i++) if (S.cls[i] === 1) { sN += val(st, 3, i); sR += val(st, 2, i); c1++; }
+      const nd = (sN - sR) / (sN + sR);
+      const F = { dn: `DN ឆៅ ជាចំនួនគត់ ១៦ ប៊ីត ដែលឧបករណ៍កត់ត្រា។ វាមិនមែនជាការចាំងផ្លាតទេ។`,
+        toa: `TOA = DN × ${fmtN(MULT * 1e5, 0)}×១០⁻⁵ + (${fmtN(ADD, 1)}) · មេគុណពិតពីឯកសារ MTL`,
+        sun: `TOA ÷ sin(មុំកម្ពស់ព្រះអាទិត្យ ${fmtN(SUN_EL, 2)}°) = TOA ÷ ${fmtN(sinE, 3)}`,
+        dos: `DOS៖ ដកតម្លៃងងឹតបំផុតរបស់ក្រុមរលកនីមួយៗ (ក្រហម ${fmtN(dosMin[2] * 100, 1)}%) ដើម្បីកាត់បន្ថយពន្លឺផ្លូវ` }[st];
+      out.innerHTML = `${F}<br>តម្លៃអប្បបរមាក្នុងក្រុមរលកក្រហម៖ <b>${st === "dn" ? fmtN(mn) : fmtN(mn * 100, 1) + "%"}</b> · NDVI មធ្យមនៃដើមឈើ៖ <b>${fmtN(nd, 2)}</b>` +
+        `<br><span class="sim-hint">សង្កេត៖ NDVI ដែលគណនាពី DN ខុសពី NDVI ពីការចាំងផ្លាត ព្រោះមេគុណ Add (−០,១) មិនលុបចោលដោយការចែក។ ការកែមុំព្រះអាទិត្យមិនប្ដូរ NDVI ទេ (គុណតម្លៃថេរដូចគ្នាទាំងពីរក្រុមរលក) ប៉ុន្តែសំខាន់សម្រាប់ប្រៀបធៀបរូបភាពខុសថ្ងៃ។ DOS ធ្វើឲ្យទឹកងងឹត និង NDVI កើន។ ${srcNote(S)}</span>`;
     };
-    el.querySelectorAll("input").forEach((x) => x.addEventListener("input", draw)); draw();
-    window.addEventListener("resize", () => el.isConnected && draw());
+    el.querySelectorAll(".co-s button").forEach((b) => (b.onclick = () => { el.querySelectorAll(".co-s button").forEach((x) => x.classList.remove("on")); b.classList.add("on"); draw(); }));
+    draw(); window.addEventListener("resize", () => el.isConnected && draw());
   };
 
   /* ---------- L8 · geometric distortion, GCPs and mosaicking ---------- */
@@ -691,7 +685,7 @@
       // per-class mean
       const sums = {}, counts = {};
       for (let i = 0; i < n * n; i++) { const c = S.cls[i]; sums[c] = (sums[c] || 0) + vals[i]; counts[c] = (counts[c] || 0) + 1; }
-      let ly2 = ly + 46; ctx.font = `12px ${font()}`;
+      let ly2 = ly + 64; ctx.font = `12px ${font()}`;
       S.classes.forEach((name, c) => { const m = (sums[c] || 0) / (counts[c] || 1);
         ctx.fillStyle = "#333"; ctx.fillText(`${name}៖`, lx, ly2); ctx.fillStyle = "#555"; ctx.fillText(fmtN(m, 2), lx + 110, ly2); ly2 += 20; });
       out.innerHTML = `<b>${def.name}</b> · ${def.desc} · ក្រុមរលកប្រើ៖ ${def.bands.map((b) => S.names[bandIdxMap[b]]).join(" · ")}` +
@@ -819,16 +813,18 @@
       ctx.fillText("ចំនួនចង្កោម (k)", X1 - 60, Y1 + 34); ctx.save(); ctx.translate(20, (Y0 + Y1) / 2 + 30); ctx.rotate(-Math.PI / 2); ctx.fillText("WCSS (កំហុសក្នុងចង្កោម)", 0, 0); ctx.restore();
       ctx.beginPath(); vals.forEach((v, i) => { const x = X0 + (i / (ks.length - 1)) * (X1 - X0), y = Y1 - (v / mx) * (Y1 - Y0); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
       ctx.strokeStyle = "#1565c0"; ctx.lineWidth = 2; ctx.stroke();
-      vals.forEach((v, i) => { const x = X0 + (i / (ks.length - 1)) * (X1 - X0), y = Y1 - (v / mx) * (Y1 - Y0); ctx.beginPath(); ctx.arc(x, y, 4, 0, 7); ctx.fillStyle = i === 3 ? "#e65100" : "#1565c0"; ctx.fill(); });
-      ctx.fillStyle = "#e65100"; ctx.font = `12px ${font()}`; ctx.fillText("← កែងដៃប្រហាក់ប្រហែល (k=5)", X0 + (3 / (ks.length - 1)) * (X1 - X0) + 8, Y1 - (vals[3] / mx) * (Y1 - Y0) - 6);
-      out.innerHTML = "កំហុសសរុប (WCSS) ធ្លាក់លឿននៅដំបូង រួចធ្លាក់យឺតៗ។ ចំណុច «កែងដៃ» ជាកន្លែងដែលការបន្ថែមចង្កោមថ្មី លែងកាត់បន្ថយកំហុសច្រើនទៀត។ សម្រាប់ទិដ្ឋភាពគំរូនេះ (ទឹក ព្រៃ ស្រែ សំណង់ ដីទទេ) កែងដៃស្ថិតជិត k=5 ដែលត្រូវនឹងចំនួនប្រភេទគម្របដីពិត។<br><span class=\"sim-hint\">វិធីនេះជាការណែនាំ មិនមែនវិធីត្រឹមត្រូវទាំងស្រុងទេ។ ចំនួនចង្កោមសមស្របគួរផ្ទៀងផ្ទាត់ដោយចំណេះដឹងតំបន់ផងដែរ។</span>";
+      // elbow = largest second difference of the (normalised) curve
+      let ei = 1, best = -Infinity; for (let i = 1; i < vals.length - 1; i++) { const d2 = (vals[i - 1] - vals[i]) - (vals[i] - vals[i + 1]); if (d2 > best) { best = d2; ei = i; } }
+      vals.forEach((v, i) => { const x = X0 + (i / (ks.length - 1)) * (X1 - X0), y = Y1 - (v / mx) * (Y1 - Y0); ctx.beginPath(); ctx.arc(x, y, 4, 0, 7); ctx.fillStyle = i === ei ? "#e65100" : "#1565c0"; ctx.fill(); });
+      ctx.fillStyle = "#e65100"; ctx.font = `12px ${font()}`; ctx.fillText(`← កែងដៃ (k=${kh(ks[ei])})`, X0 + (ei / (ks.length - 1)) * (X1 - X0) + 8, Y1 - (vals[ei] / mx) * (Y1 - Y0) - 8);
+      out.innerHTML = `កំហុសសរុប (WCSS) ធ្លាក់លឿននៅដំបូង រួចធ្លាក់យឺតៗ។ ចំណុច «កែងដៃ» ជាកន្លែងដែលការបន្ថែមចង្កោមថ្មី លែងកាត់បន្ថយកំហុសច្រើនទៀត។ សម្រាប់រូបភាពពិតនេះ កែងដៃគណនាបាននៅ <b>k=${kh(ks[ei])}</b> ខណៈផែនទីយោងមាន ${kh(S.classes.length)} ថ្នាក់។<br><span class="sim-hint">កែងដៃ និងចំនួនថ្នាក់ដែលមនុស្សចង់បាន មិនចាំបាច់ស្មើគ្នាទេ។ វិធីនេះជាការណែនាំ ត្រូវផ្ទៀងផ្ទាត់ដោយចំណេះដឹងតំបន់ផងដែរ។ ${srcNote(S)}</span>`;
     };
     draw(); window.addEventListener("resize", () => el.isConnected && draw());
   };
 
   /* ---------- L12 · supervised classification (minimum distance / parallelepiped) ---------- */
   const noiseHash = (i, b) => { let x = (i * 374761393 + b * 668265263) >>> 0; x = (x ^ (x >>> 13)) >>> 0; x = Math.imul(x, 1274126177) >>> 0; x = (x ^ (x >>> 16)) >>> 0; return (x % 2000) / 1000 - 1; };
-  const reflNoisy = (S, b, i) => clamp(refl(S, b, i) + 0.06 * noiseHash(i, b), 0, 1);
+  const reflNoisy = (S, b, i) => refl(S, b, i);
   window.EXTRA_SIMS["rs-supervised"] = async (el) => {
     const S = await loadScene();
     const { cv, ctx, out, q } = shell(el, "ការចាត់ថ្នាក់មានការណែនាំ៖ ចម្ងាយអប្បបរមា",
@@ -912,11 +908,11 @@
     const { cv, ctx, out, q } = shell(el, "បង្កើត និងអានតារាងច្របូកច្របល់",
       `<label>ចំនួនចំណុចផ្ទៀងផ្ទាត់ក្នុងមួយថ្នាក់ <b class="cm-nv"></b> <input type="range" class="cm-n" min="5" max="40" value="15"></label>
        <button type="button" class="cm-run">យកគំរូ ចាត់ថ្នាក់ និងវាយតម្លៃ</button>`);
-    const W = 640, H = 420;
+    const W = 640, H = 500;
     const k = 5;
     let seed = 21; const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
     const noiseHash = (i, b) => { let x = (i * 374761393 + b * 668265263) >>> 0; x = (x ^ (x >>> 13)) >>> 0; x = Math.imul(x, 1274126177) >>> 0; x = (x ^ (x >>> 16)) >>> 0; return (x % 2000) / 1000 - 1; };
-    const rNoisy = (b, i) => clamp(refl(S, b, i) + 0.06 * noiseHash(i, b), 0, 1);
+    const rNoisy = (b, i) => refl(S, b, i);
     let M = null, trainIdx = [], valIdx = [];
     const run = () => {
       const perClass = +q(".cm-n").value;
@@ -936,10 +932,10 @@
       fit(cv, ctx, W, H); q(".cm-nv").textContent = kh(+q(".cm-n").value);
       ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
       if (!M) { ctx.font = `13px ${font()}`; ctx.fillStyle = "#999"; ctx.fillText("ចុចប៊ូតុងខាងលើ ដើម្បីបង្កើតតារាងច្របូកច្របល់", 20, 40); out.innerHTML = "ជ្រើសចំនួនគំរូ ហើយចុចប៊ូតុង។"; return; }
-      const cx0 = 160, cy0 = 60, cell = 42;
-      ctx.font = `11px ${font()}`; ctx.fillStyle = "#333"; ctx.fillText("ចាត់ថ្នាក់ព្យាករ (Predicted)", cx0, 30);
+      const cx0 = 170, cy0 = 104, cell = 46;
+      ctx.font = `11px ${font()}`; ctx.fillStyle = "#333"; ctx.fillText("ចាត់ថ្នាក់ព្យាករ (Predicted) →", cx0, 18);
       S.classes.forEach((n2, j) => { ctx.save(); ctx.translate(cx0 + j * cell + cell / 2 + 4, cy0 - 10); ctx.rotate(-Math.PI / 4); ctx.fillText(n2, 0, 0); ctx.restore(); });
-      S.classes.forEach((n2, i) => ctx.fillText(n2, cx0 - 60, cy0 + i * cell + cell / 2 + 4));
+      S.classes.forEach((n2, i) => ctx.fillText(n2, cx0 - 92, cy0 + i * cell + cell / 2 + 4));
       const rowSum = M.map((r) => r.reduce((a, b) => a + b, 0));
       const colSum = S.classes.map((_, j) => M.reduce((a, r) => a + r[j], 0));
       let total = 0, diag = 0;
@@ -989,40 +985,29 @@
 
   /* ---------- L14 · image differencing / change detection ---------- */
   window.EXTRA_SIMS["rs-changedetect"] = async (el) => {
-    const S = await loadScene();
-    const { cv, ctx, out, q } = shell(el, "ការរកការផ្លាស់ប្ដូរដោយវិធីខុសគ្នានៃរូបភាព (Image Differencing)",
-      `<label>ភាពចាស់ទុំនៃការកាប់ព្រៃ <b class="cd-tv"></b> <input type="range" class="cd-t" min="0" max="100" value="40"></label>
-       <label>កម្រិតកំណត់ (threshold) NDVI Δ <b class="cd-hv"></b> <input type="range" class="cd-h" min="5" max="60" value="20"></label>`);
-    const W = 640, H = 360;
-    const n = S.n;
-    // deterministic "clearing" patch (simulated deforestation) south-west of the forest block
-    const clearMask = new Float32Array(n * n);
-    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { const dx = x - 40, dy = y - 118;
-      const d = Math.sqrt(dx * dx * 1.3 + dy * dy); clearMask[y * n + x] = d < 22 ? 1 : d < 30 ? (30 - d) / 8 : 0; }
-    const ndvi = (b) => (refl(S, 3, b) - refl(S, 2, b)) / (refl(S, 3, b) + refl(S, 2, b) + 1e-9);
+    const D = await loadSHV();
+    const { cv, ctx, out, q } = shell(el, "ភាពខុសគ្នានៃ NDVI (Image Differencing)៖ ព្រះសីហនុ ២០១៥ → ២០២១",
+      `<label>កម្រិតកំណត់ ΔNDVI <b class="cd-hv"></b> <input type="range" class="cd-h" min="5" max="60" value="20"></label>
+       <label><input type="checkbox" class="cd-g"> បង្ហាញការកើនឡើង NDVI ផង (ខៀវ)</label>`);
+    const W = 640, H = 300, w = D.w, h = D.h;
+    // shv_change bands: B2 B3 B4 B8 B11 B12 -> red=2, nir=3 (display-stretched, used consistently for both years)
+    const nd = (arr, i) => (arr === D.b15 ? D.nd15[i] : D.nd21[i]) / 127.5 - 1;   // real NDVI from the original GeoTIFFs
     const draw = () => {
-      fit(cv, ctx, W, H); const prog = +q(".cd-t").value / 100, thr = +q(".cd-h").value / 100;
-      q(".cd-tv").textContent = kh(+q(".cd-t").value) + "%"; q(".cd-hv").textContent = fmtN(thr, 2);
+      fit(cv, ctx, W, H); const thr = +q(".cd-h").value / 100, gain = q(".cd-g").checked;
+      q(".cd-hv").textContent = fmtN(thr, 2);
       ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
-      putScaled(ctx, composite(S, [2, 1, 0], n, false), 12, 18, 185);
-      ctx.font = `11px ${font()}`; ctx.fillStyle = "#333"; ctx.fillText("ឆ្នាំ ២០២០ (មុន)", 12, 214);
-      // "after" image: where clearMask*prog exceeds threshold, replace forest reflectance with bare-soil-like reflectance
-      const img2 = ctx.createImageData(n, n), diffImg = ctx.createImageData(n, n);
-      let changed = 0;
-      const BARE = [0.135, 0.165, 0.20, 0.25, 0.31, 0.27];
-      for (let i = 0; i < n * n; i++) { const clear = clearMask[i] * prog;
-        const mix = (b) => refl(S, b, i) * (1 - clear) + BARE[b] * clear;
-        const o = i * 4;
-        img2.data[o] = clamp(mix(2) * 255 * 2.2, 0, 255); img2.data[o + 1] = clamp(mix(1) * 255 * 2.2, 0, 255); img2.data[o + 2] = clamp(mix(0) * 255 * 2.2, 0, 255); img2.data[o + 3] = 255;
-        const nirA = refl(S, 3, i), redA = refl(S, 2, i), ndviA = (nirA - redA) / (nirA + redA + 1e-9);
-        const nirB = mix(3), redB = mix(2), ndviB = (nirB - redB) / (nirB + redB + 1e-9);
-        const d = ndviA - ndviB, isChange = d > thr;
-        if (isChange) changed++;
-        diffImg.data[o] = isChange ? 220 : 245; diffImg.data[o + 1] = isChange ? 40 : 245; diffImg.data[o + 2] = isChange ? 40 : 245; diffImg.data[o + 3] = 255; }
-      putScaled(ctx, img2, 222, 18, 185); ctx.fillText("ឆ្នាំ ២០២៤ (ក្រោយ)", 222, 214);
-      putScaled(ctx, diffImg, 432, 18, 185); ctx.fillText("ផែនទីការផ្លាស់ប្ដូរ (ក្រហម)", 432, 214);
-      const ha = (changed / (n * n)) * 4;                        // scene ~2x2km => 4 sq km total, teaching approximation
-      out.innerHTML = `ផ្ទៃដែលរកឃើញថាបានផ្លាស់ប្ដូរ ≈ <b>${fmtN(ha, 2)} គម²</b> (${fmtN((changed / (n * n)) * 100, 1)}% នៃទិដ្ឋភាព)<br><span class="sim-hint">វិធីនេះគណនា NDVI ដាច់ដោយឡែកសម្រាប់រូបភាពទាំងពីរ រួចដកគ្នា។ តម្លៃខ្ពស់ (ធ្លាក់ចុះខ្លាំង) ចាត់ទុកជាការផ្លាស់ប្ដូរ។ កម្រិតកំណត់ទាបពេក រកឃើញការប្រែប្រួលធម្មតា (ចម្រុះជាភាពមិនប្រាកដប្រជា) ជា «ការផ្លាស់ប្ដូរ» ដោយខុស។ កម្រិតកំណត់ខ្ពស់ពេក អាចខកខានការផ្លាស់ប្ដូរតូចៗ។ ទិន្នន័យនេះជាគំរូសម្រាប់បង្រៀន។</span>`;
+      const mw = 190, mk = (fn) => { const img = ctx.createImageData(w, h); for (let i = 0; i < w * h; i++) { const c = fn(i), o = i * 4; img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2]; img.data[o + 3] = 255; } return img; };
+      const ramp2 = (v) => ramp(clamp((v + 0.1) / 1.0, 0, 1), [[165, 0, 38], [255, 255, 191], [26, 152, 80]]).match(/\d+/g).map(Number);
+      putScaled(ctx, mk((i) => ramp2(nd(D.b15, i))), 6, 18, mw);
+      putScaled(ctx, mk((i) => ramp2(nd(D.b21, i))), 206, 18, mw);
+      let loss = 0, gainN = 0;
+      putScaled(ctx, mk((i) => { const d = nd(D.b21, i) - nd(D.b15, i);
+        if (d < -thr) { loss++; return [210, 30, 30]; } if (gain && d > thr) { gainN++; return [30, 90, 200]; } return [240, 240, 240]; }), 406, 18, mw);
+      ctx.font = `11px ${font()}`; ctx.fillStyle = "#333";
+      ctx.fillText("NDVI ២០១៥", 6, 18 + mw + 18); ctx.fillText("NDVI ២០២១", 206, 18 + mw + 18); ctx.fillText("ΔNDVI < −កម្រិតកំណត់ (ក្រហម)", 406, 18 + mw + 18);
+      const ha = (loss * D.px_m * D.px_m) / 10000, haG = (gainN * D.px_m * D.px_m) / 10000;
+      out.innerHTML = `ទិន្នន័យ Sentinel-2 ពិត (ក្រឡា ៣០ ម)។ ផ្ទៃដែល NDVI ធ្លាក់ចុះលើសកម្រិតកំណត់ ≈ <b>${fmtN(ha)} ហ.ត</b> (${fmtN((loss / (w * h)) * 100, 1)}% នៃទិដ្ឋភាព)` + (gain ? ` · កើនឡើង ≈ <b>${fmtN(haG)} ហ.ត</b>` : "") +
+        `<br><span class="sim-hint">កម្រិតកំណត់ទាបពេក រាប់ការប្រែប្រួលធម្មតា (រដូវ សំណើម) ជាការផ្លាស់ប្ដូរ។ ខ្ពស់ពេក ខកខានការផ្លាស់ប្ដូរពិត។ NDVI គណនាពីឯកសារ GeoTIFF ដើម (B8 និង B4) ហើយបង្រួមមក ១៩០ ក្រឡាសម្រាប់គេហទំព័រ ដូច្នេះផ្ទៃជាតម្លៃប្រហាក់ប្រហែល។ ក្នុងលំហាត់ទី១៤ អ្នកនឹងគណនាពីឯកសារ GeoTIFF ដើម។</span>`;
     };
     el.querySelectorAll("input").forEach((x) => x.addEventListener("input", draw)); draw();
     window.addEventListener("resize", () => el.isConnected && draw());
@@ -1142,7 +1127,8 @@
     const raw15 = bin(j.y2015), raw21 = bin(j.y2021);
     const b15 = [], b21 = [];
     for (let k = 0; k < nb; k++) { b15.push(raw15.subarray(k * n, (k + 1) * n)); b21.push(raw21.subarray(k * n, (k + 1) * n)); }
-    shvCache = { w: j.w, h: j.h, bands: j.bands, b15, b21 };
+    const nd15 = j.ndvi2015 ? bin(j.ndvi2015) : null, nd21 = j.ndvi2021 ? bin(j.ndvi2021) : null;
+    shvCache = { w: j.w, h: j.h, bands: j.bands, b15, b21, nd15, nd21, px_m: j.px_m || 30 };
     return shvCache;
   };
   window.EXTRA_SIMS["rs-shv-change"] = async (el) => {
@@ -1160,15 +1146,15 @@
         for (let i = 0; i < w * h; i++) { const o = i * 4;
           img.data[o] = at(arr, 2, i) * 255 * 1.15; img.data[o + 1] = at(arr, 1, i) * 255 * 1.15; img.data[o + 2] = at(arr, 0, i) * 255 * 1.15; img.data[o + 3] = 255; }
         return img; };
-      putScaled(ctx, mk(D.b15), 6, 18, mw); ctx.font = `11px ${font()}`; ctx.fillStyle = "#333"; ctx.fillText("ឆ្នាំ ២០១៥", 6, mw * (h / w) + 32);
-      putScaled(ctx, mk(D.b21), 6 + mw + 10, 18, mw); ctx.fillText("ឆ្នាំ ២០២១", 6 + mw + 10, mw * (h / w) + 32);
+      putScaled(ctx, mk(D.b15), 6, 18, mw); ctx.font = `11px ${font()}`; ctx.fillStyle = "#333"; ctx.fillText("ឆ្នាំ ២០១៥", 6, 18 + mw + 18);
+      putScaled(ctx, mk(D.b21), 6 + mw + 10, 18, mw); ctx.fillText("ឆ្នាំ ២០២១", 6 + mw + 10, 18 + mw + 18);
       // change vector magnitude across the 6 bands
       const chImg = ctx.createImageData(w, h); let changedPx = 0;
       for (let i = 0; i < w * h; i++) { let sq = 0; for (let b = 0; b < 6; b++) { const d = at(D.b21, b, i) - at(D.b15, b, i); sq += d * d; }
         const mag = Math.sqrt(sq / 6); const isCh = mag > thr; if (isCh) changedPx++;
         const o = i * 4; if (isCh) { chImg.data[o] = 220; chImg.data[o + 1] = 30; chImg.data[o + 2] = 30; } else { const g = at(D.b15, 2, i) * 200 + 30; chImg.data[o] = g; chImg.data[o + 1] = g; chImg.data[o + 2] = g; }
         chImg.data[o + 3] = 255; }
-      putScaled(ctx, chImg, 6 + 2 * (mw + 10), 18, mw); ctx.fillText("ការផ្លាស់ប្ដូរ (ក្រហម)", 6 + 2 * (mw + 10), mw * (h / w) + 32);
+      putScaled(ctx, chImg, 6 + 2 * (mw + 10), 18, mw); ctx.fillText("ការផ្លាស់ប្ដូរ (ក្រហម)", 6 + 2 * (mw + 10), 18 + mw + 18);
       const pctCh = (changedPx / (w * h)) * 100;
       out.innerHTML = `ទិន្នន័យ Sentinel-2 ពិតលើក្រុងព្រះសីហនុ (Sihanoukville) ដែលកំពុងអភិវឌ្ឍយ៉ាងលឿន។ ផ្ទៃដែលរកឃើញថាផ្លាស់ប្ដូរ ≈ <b>${fmtN(pctCh)}%</b> នៃទិដ្ឋភាព<br><span class="sim-hint">វិធីនេះហៅថា <b>Change Vector Analysis (CVA)</b>៖ គណនាចម្ងាយស្ពិចត្រាល់រវាងឆ្នាំទាំងពីរ ឆ្លងកាត់ក្រុមរលកច្រើន ក្នុងពេលតែមួយ ជំនួសឲ្យប្រើសន្ទស្សន៍តែមួយ។ តំបន់ក្រហមភ្លឺបំផុតត្រូវនឹងទីតាំងសំណង់ថ្មី និងការជម្រុះដីសម្រាប់ការអភិវឌ្ឍតាមឆ្នេរ។ បង្កើនកម្រិតកំណត់ ដើម្បីមើលតែការផ្លាស់ប្ដូរខ្លាំងបំផុត។</span>`;
     };

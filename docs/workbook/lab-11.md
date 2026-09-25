@@ -17,7 +17,8 @@
 
 ## ឯកសារដែលប្រើ
 
-- រូបភាព Sentinel-2 L2A ពីលំហាត់មុន (B2 B3 B4 B8 B11 B12)
+- **ទិន្នន័យវគ្គ (ណែនាំ)**៖ Landsat 8 ភ្នំពេញ TOA · Band set B2 B3 B4 B5 B6 B7 · [`RS_Data.zip`](https://github.com/khgeo/remote-sensing/releases/latest/download/RS_Data.zip) → `L8_PhnomPenh_2019` ([ឧបសម្ព័ន្ធ ខ](../appendix/b-imagery-data.md))
+- ឬរូបភាព Sentinel-2 L2A ពីលំហាត់មុន (B2 B3 B4 B8 B11 B12)
 - `Kh_Province_Boundary` (ជម្រើស សម្រាប់កំណត់តំបន់)
 
 ## ពិសោធន៍មុនចាប់ផ្ដើម · ១៥ នាទី
@@ -29,7 +30,7 @@
 ## សកម្មភាពទី១៖ ដំឡើង SCP · ១៥ នាទី
 
 1. **Plugins → Manage and Install Plugins** → ស្វែងរក «Semi-Automatic Classification Plugin» → Install។
-2. បើកផ្ទាំង SCP (រូបតំណាងនៅរបារឧបករណ៍)។ បង្កើត **Band set** ថ្មីជាមួយក្រុមរលកទាំងប្រាំមួយ (B2 B3 B4 B8 B11 B12) តាមលំដាប់ត្រឹមត្រូវ។
+2. បើកផ្ទាំង SCP (រូបតំណាងនៅរបារឧបករណ៍)។ បង្កើត **Band set** ថ្មីជាមួយក្រុមរលកទាំងប្រាំមួយ តាមលំដាប់ត្រឹមត្រូវ៖ Landsat B2 B3 B4 B5 B6 B7 (ឬ Sentinel-2 B2 B3 B4 B8 B11 B12)។
 
 ## សកម្មភាពទី២៖ ធ្វើតេស្តចំនួនចង្កោម · ២៥ នាទី
 
