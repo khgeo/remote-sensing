@@ -13,13 +13,15 @@
   const font = () => getComputedStyle(document.body).fontFamily;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   window.EXTRA_SIMS = window.EXTRA_SIMS || {};
+  // data folder resolved from this script's own URL, so the sims work in lessons, labs, slides and the PDF page
+  const RS_DATA = new URL("../data/", (document.currentScript && document.currentScript.src) || location.href);
   const ramp = (t, stops) => { t = clamp(t, 0, 1); const n = stops.length - 1, i = Math.min(n - 1, Math.floor(t * n)), f = t * n - i; const a = stops[i], b = stops[i + 1]; return `rgb(${a.map((v, k) => Math.round(v + (b[k] - v) * f)).join(",")})`; };
 
   /* ---------- sample scene ---------- */
   let scene = null;
   const loadScene = async () => {
     if (scene) return scene;
-    const j = await (await fetch(new URL("../../assets/data/scene_sample.json", location.href))).json();
+    const j = await (await fetch(new URL("scene_sample.json", RS_DATA))).json();
     const bin = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
     const raw = bin(j.data), n = j.n, nb = j.bands.length;
     const b = []; for (let k = 0; k < nb; k++) b.push(raw.subarray(k * n * n, (k + 1) * n * n));
@@ -328,7 +330,7 @@
   /* ---------- L4 · orbit, swath and revisit ---------- */
   let wl = null;
   window.EXTRA_SIMS["rs-orbit"] = async (el) => {
-    if (!wl) wl = await (await fetch(new URL("../../assets/data/world_land.json", location.href))).json();
+    if (!wl) wl = await (await fetch(new URL("world_land.json", RS_DATA))).json();
     const { cv, ctx, out, q } = shell(el, "គន្លង ទទឹងថត និងរយៈពេលមកម្ដងទៀត",
       `<label>ផ្កាយរណប <select class="ob-s"><option value="s2">Sentinel-2 (២៩០ គម · ៥ ថ្ងៃ)</option><option value="l8">Landsat 8/9 (១៨៥ គម · ១៦ ថ្ងៃ)</option><option value="modis">MODIS (២ ៣៣០ គម · ១ ថ្ងៃ)</option></select></label>
        <label>ចំនួនគន្លង <b class="ob-nv"></b> <input type="range" class="ob-n" min="1" max="30" value="8"></label>`);
@@ -1121,7 +1123,7 @@
   let shvCache = null;
   const loadSHV = async () => {
     if (shvCache) return shvCache;
-    const j = await (await fetch(new URL("../../assets/data/shv_change.json", location.href))).json();
+    const j = await (await fetch(new URL("shv_change.json", RS_DATA))).json();
     const bin = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
     const n = j.w * j.h, nb = j.bands.length;
     const raw15 = bin(j.y2015), raw21 = bin(j.y2021);

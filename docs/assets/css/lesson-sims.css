@@ -60,3 +60,7 @@
 .me-row.no { background: rgba(198,40,40,.08); color: #8e0000; }
 /* remote-sensing sims */
 .sim-controls-inline { display: flex; flex-wrap: wrap; gap: .35em .9em; }
+
+/* real-data figures (assets/svg/rsv): the caption already carries the title */
+.md-typeset figure svg .ftitle { display: none; }
+.md-typeset figure svg { max-width: 100%; height: auto; }
