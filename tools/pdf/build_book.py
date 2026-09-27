@@ -238,12 +238,12 @@ async def render(chrome_path=None):
         where = {}
         with pymupdf.open(body_pdf) as d:
             for i, page in enumerate(d):
-                for key in re.findall(r"ZZ\|([a-z0-9-]+)\|ZZ", page.get_text().replace("\n", "")):
-                    where.setdefault(key, i + 1)
+                for key in re.findall(r"ZZ\|([a-z0-9-]+)\|ZZ", page.get_text().replace("\n", "").replace(" ", "")):
+                    where.setdefault(re.sub(r"(.)\1+", r"\1", key), i + 1)   # text extraction may drop doubled letters (ll, ff)
         toc = []
         for idx, (kind, title, md, part) in enumerate(items):
             key = f"div{idx}" if kind == "divider" else slug_of(md)
-            toc.append((kind, title, where.get(key), part))
+            toc.append((kind, title, where.get(re.sub(r"(.)\1+", r"\1", key)), part))
         await pg.set_viewport_size({"width": 794, "height": 1123})
         open(os.path.join(OUT, "front.html"), "w", encoding="utf-8").write(front_matter(toc))
         await pg.goto("file://" + os.path.join(OUT, "front.html")); await pg.wait_for_timeout(1500)
