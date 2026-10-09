@@ -30,12 +30,12 @@ jobs:
       - run: python tools/pdf/build_book.py
       - uses: actions/upload-artifact@v4
         with:
-          name: fundamentals-of-gis-pdf
+          name: fundamentals-of-remote-sensing-pdf
           path: |
-            book/fundamentals-of-gis.pdf
+            book/fundamentals-of-remote-sensing.pdf
             book/cover-wrap-print.pdf
       - name: Attach to release
         if: github.event_name == 'release'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ github.event.release.tag_name }}" book/fundamentals-of-gis.pdf book/cover-wrap-print.pdf --clobber
+        run: gh release upload "${{ github.event.release.tag_name }}" book/fundamentals-of-remote-sensing.pdf book/cover-wrap-print.pdf --clobber
