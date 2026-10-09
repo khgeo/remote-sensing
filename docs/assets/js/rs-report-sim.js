@@ -80,4 +80,44 @@
     el.querySelectorAll(".lr-t button").forEach((b) => (b.onclick = () => { el.querySelectorAll(".lr-t button").forEach((x) => x.classList.toggle("on", x === b)); tab = b.dataset.v; views[tab](); }));
     views.map();
   };
+
+  /* ---------- L13 · error-adjusted area with confidence interval (Olofsson et al. 2014) ---------- */
+  window.EXTRA_SIMS["rs-olofsson"] = (el) => {
+    const P = { flood: { n: [[46, 5], [4, 45]], A: [500000, 24680] }, more: { n: [[184, 20], [4, 45]], A: [500000, 24680] }, prop: { n: [[95, 1], [1, 3]], A: [500000, 24680] } };
+    el.innerHTML = `<div class="sim-title">ផ្ទៃកែតម្រូវកំហុស និងចន្លោះទំនុកចិត្ត ៩៥%</div>
+      <div class="sim-controls"><span class="sim-seg ol-p"><button type="button" data-v="flood" class="on">របាយការណ៍ទឹកជំនន់ (គំរូ ១០០)</button><button type="button" data-v="more">គំរូ «មិនលិច» ×៤</button><button type="button" data-v="prop">បែងតាមសមាមាត្រផ្ទៃ</button></span></div>
+      <div class="ol-in" style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;margin:6px 0"></div><div class="ol-fig"></div><div class="sim-out"></div>`;
+    const q = (s) => el.querySelector(s); let st = JSON.parse(JSON.stringify(P.flood));
+    const num = (v, cls) => `<input type="number" min="0" step="1" value="${v}" class="${cls}" style="width:${cls === "ol-a" ? 90 : 56}px;font:inherit;font-size:.72rem;text-align:right">`;
+    const build = () => {
+      q(".ol-in").innerHTML = `<table style="border-collapse:collapse;font-size:.7rem"><tr><th></th><th colspan="2" style="padding:2px 6px">យោង (ការពិត)</th><th></th><th style="padding:2px 6px">ផ្ទៃលើផែនទី (ហ.ត)</th></tr>
+        <tr><th style="padding:2px 6px">ផែនទី ↓</th><th style="padding:2px 6px">មិនលិច</th><th style="padding:2px 6px">លិច</th><th style="padding:2px 6px">nᵢ</th><th></th></tr>
+        ${["មិនលិច", "លិច"].map((t, i) => `<tr><th style="text-align:left;padding:2px 6px">${t}</th><td>${num(st.n[i][0], "ol-n")}</td><td>${num(st.n[i][1], "ol-n")}</td><td class="ol-ni" style="text-align:center"></td><td>${num(st.A[i], "ol-a")}</td></tr>`).join("")}</table>`;
+      q(".ol-in").querySelectorAll("input").forEach((x) => (x.oninput = calc)); calc(); };
+    const calc = () => {
+      const ns = [...q(".ol-in").querySelectorAll(".ol-n")].map((x) => Math.max(0, +x.value || 0)), As = [...q(".ol-in").querySelectorAll(".ol-a")].map((x) => Math.max(0, +x.value || 0));
+      st.n = [[ns[0], ns[1]], [ns[2], ns[3]]]; st.A = As;
+      const At = As[0] + As[1], W = As.map((a) => a / At), ni = st.n.map((r) => r[0] + r[1]);
+      q(".ol-in").querySelectorAll(".ol-ni").forEach((td, i) => (td.textContent = kh(ni[i])));
+      const res = [0, 1].map((j) => { let p = 0, v = 0;
+        for (let i = 0; i < 2; i++) { if (!ni[i]) continue; const f = st.n[i][j] / ni[i]; p += W[i] * f; if (ni[i] > 1) v += (W[i] ** 2 * f * (1 - f)) / (ni[i] - 1); }
+        return { adj: p * At, ci: 1.96 * Math.sqrt(v) * At }; });
+      const ua = ni[1] ? st.n[1][1] / ni[1] : 0, pa = res[1].adj ? (W[1] * ua * At) / res[1].adj : 0;
+      // figure: mapped vs adjusted with CI for the flood class
+      const r = res[1], mx = Math.max(As[1], r.adj + r.ci) * 1.1 || 1, X = (v) => 20 + (v / mx) * 560;
+      q(".ol-fig").innerHTML = `<svg viewBox="0 0 620 120" style="width:100%;height:auto;font-family:inherit">
+        <text x="20" y="16" font-size="12" font-weight="700">ផ្ទៃលិច (ហ.ត)</text>
+        <line x1="${X(Math.max(0, r.adj - r.ci))}" y1="60" x2="${X(r.adj + r.ci)}" y2="60" stroke="#1565c0" stroke-width="3"/>
+        <line x1="${X(Math.max(0, r.adj - r.ci))}" y1="50" x2="${X(Math.max(0, r.adj - r.ci))}" y2="70" stroke="#1565c0" stroke-width="2"/><line x1="${X(r.adj + r.ci)}" y1="50" x2="${X(r.adj + r.ci)}" y2="70" stroke="#1565c0" stroke-width="2"/>
+        <circle cx="${X(r.adj)}" cy="60" r="7" fill="#1565c0"/><text x="${X(r.adj)}" y="40" font-size="11" text-anchor="middle" fill="#1565c0">កែតម្រូវ ${fmtN(r.adj)} ± ${fmtN(r.ci)}</text>
+        <rect x="${X(As[1]) - 6}" y="78" width="12" height="12" fill="#e53935"/><text x="${X(As[1])}" y="106" font-size="11" text-anchor="middle" fill="#c62828">រាប់ក្រឡា ${fmtN(As[1])}</text>
+        <line x1="20" y1="94" x2="580" y2="94" stroke="#bdbdbd"/></svg>`;
+      const out = As[1] < r.adj - r.ci || As[1] > r.adj + r.ci;
+      q(".sim-out").innerHTML = `ផ្ទៃលិចកែតម្រូវ <b>${fmtN(r.adj)} ± ${fmtN(r.ci)} ហ.ត</b> (៩៥%) · User's ${fmtN(ua * 100, 1)}% · Producer's (ប៉ាន់តាមផ្ទៃ) ${fmtN(pa * 100, 1)}%។ ` +
+        (out ? `<b style="color:#c62828">ផ្ទៃរាប់ក្រឡានៅក្រៅចន្លោះទំនុកចិត្ត៖ ផែនទីលម្អៀង (${As[1] < r.adj ? "ប៉ាន់តិចជាងពិត" : "ប៉ាន់លើសពិត"})។</b>` : `ផ្ទៃរាប់ក្រឡានៅក្នុងចន្លោះទំនុកចិត្ត។`) +
+        `<br><span class="sim-hint">p̂ⱼ = Σᵢ Wᵢ nᵢⱼ / nᵢ · SE(p̂ⱼ) = √(Σᵢ Wᵢ² (nᵢⱼ/nᵢ)(1 − nᵢⱼ/nᵢ) / (nᵢ − 1)) · CI = ±១,៩៦ × SE × A · Wᵢ = ផ្ទៃផែនទីថ្នាក់ i ÷ ផ្ទៃសរុប · ក្នុងស្រទាប់ធំ (មិនលិច) គំរូលិចតែ ៥ ក៏បង្កើនផ្ទៃលិចខ្លាំង។</span>`;
+    };
+    el.querySelectorAll(".ol-p button").forEach((b) => (b.onclick = () => { el.querySelectorAll(".ol-p button").forEach((x) => x.classList.toggle("on", x === b)); st = JSON.parse(JSON.stringify(P[b.dataset.v])); build(); }));
+    build();
+  };
 })();
