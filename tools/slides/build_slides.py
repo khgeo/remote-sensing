@@ -20,7 +20,7 @@ ONLINE = "https://khgeo.github.io/remote-sensing/"
 PAGE_EXT = "/"
 C1, C2, C3, BG = "#5d4037", "#e64a19", "#3e2723", "#faf6f4"
 CSS_FILES = ["assets/css/lesson-sims.css"]
-JS_FILES = ["assets/js/rs-sims.js", "assets/js/lesson-sims.js"]
+JS_FILES = ["assets/js/rs-sims.js", "assets/js/rs-report-sim.js", "assets/js/lesson-sims.js"]
 VISUALS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "visuals.json")
 # -----------------------------------------------------------------------------
 
