@@ -19,6 +19,6 @@
 | ១០ | <a href="lesson-10.html" target="_blank">សន្ទស្សន៍ស្ពិចត្រាល់</a> | ៦៧ | ២ |
 | ១១ | <a href="lesson-11.html" target="_blank">ការចាត់ថ្នាក់គ្មានការណែនាំ</a> | ៦៣ | ២ |
 | ១២ | <a href="lesson-12.html" target="_blank">ការចាត់ថ្នាក់មានការណែនាំ</a> | ៦៣ | ៣ |
-| ១៣ | <a href="lesson-13.html" target="_blank">ការវាយតម្លៃភាពត្រឹមត្រូវ</a> | ៧២ | ២ |
-| ១៤ | <a href="lesson-14.html" target="_blank">ការរកការផ្លាស់ប្ដូរ និងស៊េរីពេលវេលា</a> | ៦៥ | ៣ |
-| ១៥ | <a href="lesson-15.html" target="_blank">រ៉ាដា SAR និងគម្រោងបញ្ចប់វគ្គ</a> | ៦៦ | ២ |
+| ១៣ | <a href="lesson-13.html" target="_blank">ការវាយតម្លៃភាពត្រឹមត្រូវ</a> | ៨០ | ៣ |
+| ១៤ | <a href="lesson-14.html" target="_blank">ការរកការផ្លាស់ប្ដូរ និងស៊េរីពេលវេលា</a> | ៦៨ | ៤ |
+| ១៥ | <a href="lesson-15.html" target="_blank">រ៉ាដា SAR និងគម្រោងបញ្ចប់វគ្គ</a> | ៩០ | ៥ |

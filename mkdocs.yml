@@ -48,6 +48,7 @@ extra_javascript:
   - assets/js/rs-sims.js
   - assets/js/rs-report-sim.js
   - assets/js/rs-sar-sims.js
+  - assets/js/s1s2-sim.js
   - assets/js/lesson-sims.js
   - assets/js/workbook.js
 
