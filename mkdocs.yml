@@ -37,20 +37,21 @@ theme:
         name: ប្ដូរទៅរបៀបភ្លឺ
 
 extra_css:
-  - https://fonts.googleapis.com/css2?family=Battambang:wght@400;700&family=Siemreap&family=Moul&display=swap
+  - assets/css/local-fonts.css
   - assets/css/khmer.css
-  - https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css
+  - assets/vendor/leaflet/leaflet.css
   - assets/css/workbook.css
   - assets/css/lesson-sims.css
 
 extra_javascript:
-  - https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js
+  - assets/vendor/leaflet/leaflet.js
   - assets/js/rs-sims.js
   - assets/js/rs-report-sim.js
   - assets/js/rs-sar-sims.js
   - assets/js/s1s2-sim.js
   - assets/js/lesson-sims.js
   - assets/js/workbook.js
+  - assets/js/offline-pwa.js
 
 markdown_extensions:
   - admonition
@@ -133,3 +134,6 @@ nav:
       - ខ៖ ទិន្នន័យ និងរូបភាពផ្កាយរណប: appendix/b-imagery-data.md
       - គ៖ ឯកសារយោង: appendix/c-references.md
   - វាក្យសព្ទបច្ចេកទេស: glossary.md
+
+hooks:
+  - tools/offline/offline_hook.py

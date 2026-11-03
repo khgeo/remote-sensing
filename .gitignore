@@ -22,3 +22,5 @@ data/**/*.zip
 # PDF build output
 book/
 site/
+build/
+mkdocs.offline.tmp.yml
