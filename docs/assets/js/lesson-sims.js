@@ -225,7 +225,7 @@
         rows.push(["Integer (32 ប៊ីត)", big ? "NULL" : String(n), big || lost || frac ? "warn" : "ok",
           big ? "លើសពី ២ ១៤៧ ៤៨៣ ៦៤៧ (ដែនកំណត់ Integer)។ ត្រូវប្រើ Integer64។" : lost ? "លេខ ០ ខាងមុខបាត់! លេខកូដ 020404 ក្លាយជា 20404 ហើយភ្ជាប់តារាងមិនបាន។" : frac ? "ផ្នែកទសភាគបាត់។" : "ត្រឹមត្រូវ។"]);
         rows.push(["Decimal (Real)", String(Number(v)), lost ? "warn" : "ok", lost ? "លេខ ០ ខាងមុខបាត់ដូចគ្នា។ លេខកូដមិនមែនជាលេខសម្រាប់គណនាទេ។" : "ល្អសម្រាប់ផ្ទៃ ចម្ងាយ ភាគរយ។"]); }
-      else { const why = khd ? "លេខខ្មែរមិនត្រូវបានស្គាល់ជាលេខក្នុងកម្មវិធីភាគច្រើនទេ។ ត្រូវវាយជាលេខអារ៉ាប់។" : v.includes(",") ? "សញ្ញាក្បៀសបំបែកខ្ទង់ ធ្វើឲ្យមិនអាចបម្លែងជាលេខ។" : "មិនមែនជាលេខ។";
+      else { const why = khd ? "លេខខ្មែរមិនត្រូវបានស្គាល់ជាលេខក្នុងកម្មវិធីភាគច្រើនទេ។ ត្រូវវាយជាលេខអារ៉ាប់។" : v.includes(",") ? "សញ្ញាក្បៀសបំបែកខ្ទង់ ធ្វើឱ្យមិនអាចបម្លែងជាលេខ។" : "មិនមែនជាលេខ។";
         rows.push(["Integer (32 ប៊ីត)", "NULL", "bad", why]); rows.push(["Decimal (Real)", "NULL", "bad", why]); }
       const d = /^\d{4}-\d{2}-\d{2}$/.test(v) && !isNaN(Date.parse(v));
       rows.push(["Date", d ? v : "NULL", d ? "ok" : "bad", d ? "ទម្រង់ ISO (YYYY-MM-DD) ត្រឹមត្រូវ អាចគណនាចំនួនថ្ងៃបាន។" : "Date ត្រូវការទម្រង់ YYYY-MM-DD។"]);
@@ -377,7 +377,7 @@
       ctx.strokeStyle = "#ff6f00"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(mx - 9, my - 9); ctx.lineTo(mx + 9, my + 9); ctx.moveTo(mx + 9, my - 9); ctx.lineTo(mx - 9, my + 9); ctx.stroke();
       const acc = off < 20, pre = sd < 25;
       out.innerHTML = `ចម្ងាយពីមធ្យមទៅចំណុចកណ្ដាល (accuracy)៖ <b>${fmt(off / 3.5, 1)} ម</b> → ${acc ? "✓ ត្រឹមត្រូវ" : "✗ មិនត្រឹមត្រូវ"} · ការរាយប៉ាយ (precision)៖ <b>${fmt(sd / 3.5, 1)} ម</b> → ${pre ? "✓ ជាក់លាក់" : "✗ មិនជាក់លាក់"}
-        <br><span class="sim-hint">${!acc && pre ? "គ្រោះថ្នាក់បំផុត៖ លទ្ធផលមើលទៅស្របគ្នា ធ្វើឲ្យជឿថាត្រឹមត្រូវ ប៉ុន្តែខុសទាំងអស់ដូចគ្នា (ឧ. CRS ខុស ឬ datum ខុស)។" : "ភាពជាក់លាក់មិនធានាភាពត្រឹមត្រូវទេ។"}</span>`;
+        <br><span class="sim-hint">${!acc && pre ? "គ្រោះថ្នាក់បំផុត៖ លទ្ធផលមើលទៅស្របគ្នា ធ្វើឱ្យជឿថាត្រឹមត្រូវ ប៉ុន្តែខុសទាំងអស់ដូចគ្នា (ឧ. CRS ខុស ឬ datum ខុស)។" : "ភាពជាក់លាក់មិនធានាភាពត្រឹមត្រូវទេ។"}</span>`;
     }
     el.querySelectorAll("input").forEach((c) => c.addEventListener("input", draw));
     el.querySelectorAll(".sim-chip").forEach((c) => c.onclick = () => { q(".ac-b").value = c.dataset.b; q(".ac-s").value = c.dataset.s; pts = pts.map(() => [rnd(), rnd()]); draw(); });
@@ -387,7 +387,7 @@
   /* ============ L9 · Spatial predicates ============ */
   SIMS["predicates"] = (el) => {
     const { q, out } = shell(el, "ទំនាក់ទំនងលំហ (Spatial predicates)",
-      `<span class="sim-hint">អូសប្រអប់ A (ខៀវ) ឬ B (ទឹកក្រូច)។ ទីតាំងចាប់ជាប់ក្រឡា ដើម្បីងាយធ្វើឲ្យប៉ះគ្នា។</span>
+      `<span class="sim-hint">អូសប្រអប់ A (ខៀវ) ឬ B (ទឹកក្រូច)។ ទីតាំងចាប់ជាប់ក្រឡា ដើម្បីងាយធ្វើឱ្យប៉ះគ្នា។</span>
        <span>${[["ប៉ះគ្នា", [180, 110, 120, 100], [300, 140, 140, 90]], ["នៅក្នុង", [240, 130, 80, 60], [180, 90, 220, 170]], ["ត្រួតគ្នា", [150, 100, 160, 120], [250, 150, 160, 120]], ["ដាច់ពីគ្នា", [80, 80, 120, 100], [380, 170, 140, 90]]]
         .map(([n, a, b]) => `<button type="button" class="sim-chip" data-a="${a}" data-b="${b}">${n}</button>`).join("")}</span>`);
     const W = 600, H = 320, G = 10; const R = { A: [150, 100, 160, 120], B: [250, 150, 160, 120] }; let drag = null;

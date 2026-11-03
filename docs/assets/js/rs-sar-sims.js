@@ -111,8 +111,8 @@
       ctx.font = `11px ${font()}`; ctx.fillStyle = "#333"; ctx.textAlign = "left";
       ctx.fillText(mode === "db" ? "−៣០ dB" : "០", hx, hy + 14); ctx.textAlign = "right"; ctx.fillText(mode === "pow" ? "០,៣" : mode === "amp" ? "០,៧" : "០ dB", hx + hw, hy + 14);
       ctx.textAlign = "left"; NAMES.forEach((t, c) => { ctx.fillStyle = cols[c]; ctx.fillRect(hx + c * 72, 22, 10, 10); ctx.fillStyle = "#333"; ctx.fillText(t, hx + 14 + c * 72, 31); });
-      const note = { pow: "<b>Power</b>៖ តម្លៃភាគច្រើនជិតសូន្យ ហើយសំណង់ពីរបីក្រឡាធ្វើឲ្យ stretch ខូច។ ល្អសម្រាប់គណនាស្ថិតិ (មធ្យម) ប៉ុន្តែពិបាកមើល។ ទឹក និងដីរលោងស្ទើរដូចគ្នា។",
-        amp: "<b>Amplitude</b>៖ ឫសការេបង្រួមជួរ ធ្វើឲ្យរូបភាពមើលទៅធម្មជាតិជាង។",
+      const note = { pow: "<b>Power</b>៖ តម្លៃភាគច្រើនជិតសូន្យ ហើយសំណង់ពីរបីក្រឡាធ្វើឱ្យ stretch ខូច។ ល្អសម្រាប់គណនាស្ថិតិ (មធ្យម) ប៉ុន្តែពិបាកមើល។ ទឹក និងដីរលោងស្ទើរដូចគ្នា។",
+        amp: "<b>Amplitude</b>៖ ឫសការេបង្រួមជួរ ធ្វើឱ្យរូបភាពមើលទៅធម្មជាតិជាង។",
         db: "<b>dB</b>៖ លោការីតពង្រីកតម្លៃទាប ដូច្នេះទឹក (ប្រហែល −២៧ dB) បំបែកចេញពីដីទទេ (−១៦ dB) ច្បាស់។ ល្អសម្រាប់កំណត់កម្រិតទឹក ប៉ុន្តែកុំគណនាមធ្យមក្នុង dB៖ គណនាក្នុង power រួចបម្លែង។" }[mode];
       out.innerHTML = `${note}<br>Looks ${kh(L)}៖ ការបូកមធ្យម (multi-look) កាត់ speckle ប៉ុន្តែបង្រួមភាពច្បាស់លំហ។ <span class="sim-hint">រូបភាពក្លែងធ្វើ៖ មធ្យម VV ទឹក ០,០០២ · ដីរលោង ០,០២៥ · ស្រែ ០,០៨ · ព្រៃ ០,១៥ · សំណង់ ១,២ (power)។</span>`;
     };
